@@ -1,0 +1,25 @@
+# Datasets (too large for GitHub; re-download from Zenodo record 8339691)
+data/
+spam_Emails_data.csv
+
+# Model weights, checkpoints, and run outputs
+checkpoints/
+outputs/
+results/raw/
+*.safetensors
+*.bin
+*.gguf
+wandb/
+
+# Python / Jupyter
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.venv/
+venv/
+
+# Secrets (HF tokens, API keys)
+.env
+
+# OS
+.DS_Store
