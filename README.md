@@ -71,8 +71,9 @@ Each line of a `.jsonl` file is one email:
 ## Project plan
 
 1. **Build dataset** — `src/build_dataset.py` (local) ✅
-2. **Shared prompt + JSON output format** — `src/prompts.py`
-3. **Baseline inference** — Llama, Qwen, Mistral on the test set (Colab)
+2. **Shared prompt + JSON output format** — `src/prompts.py` ✅
+3. **Baseline inference** — Llama, Qwen, Mistral on the test set (Colab):
+   `notebooks/01_baselines.ipynb` + `src/inference.py`
 4. **Explanation targets** for the training set
 5. **QLoRA fine-tune** of Llama 3.1 8B, incl. learning curve (Colab)
 6. **Classification metrics** — accuracy, precision, recall, F1
