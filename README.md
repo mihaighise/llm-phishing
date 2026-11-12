@@ -127,17 +127,52 @@ notebooks/
 data/                # gitignored: zenodo/ (raw) and processed/ (splits)
 ```
 
-## Project plan
+## Project checklist
 
-1. **Build dataset** — `src/build_dataset.py` (local) ✅
-2. **Shared prompt + JSON output format** — `src/prompts.py` ✅
-3. **Baseline inference** — Llama, Qwen, Mistral on the test set (Colab):
-   `notebooks/01_baselines.ipynb` + `src/inference.py`
-4. **Explanation targets** for the training set
-5. **QLoRA fine-tune** of Llama 3.1 8B, incl. learning curve (Colab)
-6. **Classification metrics** — accuracy, precision, recall, F1
-7. **Explanation evaluation** — manual rubric on a ~100-email sample
-8. **Write-up**
+### Step 1 — Dataset ✅
+- [x] Choose a phishing dataset (Zenodo curated corpora; rejected the original spam CSV)
+- [x] Clean, de-duplicate and split into test / val / nested train sets — `src/build_dataset.py`
+- [x] Verify splits are reproducible and leak-free
+- [ ] Shortcut check: train a simple bag-of-words classifier; if it scores ~99%, document the era shortcut
+
+### Step 2 — Prompt and output format ✅
+- [x] Fixed indicator list, system prompt, email formatting — `src/prompts.py`
+- [x] Robust JSON parser, tested on messy outputs
+- [x] Model-running code with 4-bit loading and resumable results — `src/inference.py`
+
+### Step 3 — Baselines (Colab, no training)
+- [ ] Accept the Llama 3.1 license on Hugging Face and add `HF_TOKEN` to Colab secrets
+- [ ] Run the 20-email smoke test in `notebooks/01_baselines.ipynb`
+- [ ] Confirm all three models parse close to 100%; fix the prompt on the **val** set if not
+- [ ] Full run: Llama 3.1 8B, Qwen 3.5 9B, Mistral 7B on all 1,000 test emails
+
+### Step 4 — Explanation targets for training
+- [ ] Generate a reasoning + indicators answer for each training email with a larger model, given the true label
+- [ ] Hand-check ~100 generated explanations for correctness
+- [ ] Save as chat-format training files (prompt → `format_answer()` JSON)
+
+### Step 5 — Fine-tune Llama 3.1 8B (Colab)
+- [ ] QLoRA training notebook (`notebooks/02_finetune.ipynb`)
+- [ ] Train on `train_3000`; pick the best checkpoint on the val set
+- [ ] Learning curve: also train on `train_500`, `train_1500`, `train_full`
+- [ ] Run the fine-tuned model(s) on the same 1,000 test emails
+
+### Step 6 — Classification metrics
+- [ ] Accuracy, precision, recall, F1 per model (unparseable answers count as wrong)
+- [ ] Confusion matrices and per-source results (Nazario vs Nigerian)
+- [ ] Parse-failure rate per model
+- [ ] Learning-curve plot (F1 vs training size)
+
+### Step 7 — Explanation evaluation
+- [ ] Sample ~100 test emails; collect every model's explanation
+- [ ] Score correctness, clarity, and indicator relevance (1–5) with two raters
+- [ ] Compare indicator frequencies across models
+- [ ] Optional: LLM-as-judge as a secondary score
+
+### Step 8 — Write-up
+- [ ] Results tables and figures
+- [ ] Error analysis with example emails
+- [ ] Limitations (era gap, lost URLs, limited modern phishing)
 
 Data preparation runs locally as scripts in `src/`; GPU work runs in Colab
 notebooks in `notebooks/` that import from `src/`.
