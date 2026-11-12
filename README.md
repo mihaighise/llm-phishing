@@ -68,6 +68,65 @@ Each line of a `.jsonl` file is one email:
   original HTML-to-text conversion; only a `has_urls` flag remains.
 - **Limited modern phishing:** ~1,500 unique Nazario emails.
 
+## Prompt and output format
+
+All models share one prompt and one parser (`src/prompts.py`), so the
+comparison is fair. Each email is shown as:
+
+```
+From: "USAA" <customer1-mailing@mail.mil>
+Subject: COMPLETE YOUR ACCOUNT UPGRADE IMMEDIATELY
+Contains links: yes
+Body:
+Dear USAA Member, We have received multiple account update...
+```
+
+and the model must answer with JSON only:
+
+```json
+{"label": "phishing", "confidence": 0.92,
+ "indicators": ["impersonation", "urgency", "credential_request"],
+ "reasoning": "Sender claims to be USAA but uses a mail.mil address..."}
+```
+
+Indicators must come from a fixed list so they can be counted across models:
+`urgency`, `impersonation`, `credential_request`, `suspicious_link`,
+`unexpected_attachment`, `money_or_reward`, `poor_grammar`,
+`generic_greeting`, `none`.
+
+Settings: zero-shot, greedy decoding (temperature 0), each model's own chat
+template, 4-bit NF4 loading for every model, Qwen's thinking mode off.
+Answers that cannot be parsed are counted as wrong.
+
+## Running the baselines (Colab)
+
+1. Accept the license on
+   [Llama 3.1 8B Instruct](https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct)
+   (gated model).
+2. Create a read token at <https://huggingface.co/settings/tokens>.
+3. Open
+   [`notebooks/01_baselines.ipynb` in Colab](https://colab.research.google.com/github/mihaighise/llm-phishing/blob/main/notebooks/01_baselines.ipynb),
+   set *Runtime → Change runtime type → GPU*, and add the token under
+   🔑 *Secrets* as `HF_TOKEN`.
+4. *Runtime → Run all.*
+
+The notebook rebuilds the dataset from Zenodo (verified byte-identical to the
+local build), runs a 20-email smoke test on the validation set, and saves
+answers to `MyDrive/llm-phishing/results/raw/`. For the full run, set
+`SPLIT = "test"` and `N_EMAILS = None`. Runs are resumable after a disconnect.
+
+## Repository layout
+
+```
+src/
+  build_dataset.py   # Step 1: clean, de-duplicate, split (runs locally)
+  prompts.py         # shared prompt, email formatting, answer parser
+  inference.py       # 4-bit model loading + batched generation (Colab GPU)
+notebooks/
+  01_baselines.ipynb # Step 3: run Llama / Qwen / Mistral baselines
+data/                # gitignored: zenodo/ (raw) and processed/ (splits)
+```
+
 ## Project plan
 
 1. **Build dataset** — `src/build_dataset.py` (local) ✅
