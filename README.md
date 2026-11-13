@@ -113,7 +113,30 @@ Answers that cannot be parsed are counted as wrong.
 The notebook rebuilds the dataset from Zenodo (verified byte-identical to the
 local build), runs a 20-email smoke test on the validation set, and saves
 answers to `MyDrive/llm-phishing/results/raw/`. For the full run, set
-`SPLIT = "test"` and `N_EMAILS = None`. Runs are resumable after a disconnect.
+`SPLIT = "test"` and `N_EMAILS = None`.
+
+Tips:
+- To get the latest notebook, re-open it from the Colab link above — Colab
+  copies the notebook when you open it, and `git pull` in cell 1 only updates
+  `src/`.
+- If the runtime restarts (crash, disconnect, *Restart session*), run the
+  cells again from the top, or at least from the configuration cell; the
+  cells that import from `src/` re-add it to the Python path themselves.
+
+### What is saved, and what you need to re-run
+
+| What | Where | Kept after the session? |
+|---|---|---|
+| Model answers (raw text + parsed fields) | `MyDrive/llm-phishing/results/raw/<model>_<split>_<N>.jsonl` | Yes (Google Drive) |
+| Fine-tuned LoRA adapters (Step 5, ~100–200 MB each) | Google Drive | Yes |
+| Downloaded model weights (~5–6 GB each) | Colab's temporary disk | No — re-downloaded in 1–3 min when needed |
+| Processed dataset | Colab's temporary disk | No — rebuilt from Zenodo in ~30 s |
+
+- Each model only has to be run **once per split**. Re-running with the same
+  settings skips emails already in the results file, and an interrupted run
+  continues where it stopped.
+- Metrics and explanation scoring (Steps 6–7) only read the saved answer
+  files, so they need no GPU and can run locally.
 
 ## Repository layout
 
