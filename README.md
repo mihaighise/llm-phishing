@@ -169,7 +169,7 @@ data/                # gitignored: zenodo/ (raw) and processed/ (splits)
 - [ ] Compare indicator frequencies across models
 - [ ] Optional: LLM-as-judge as a secondary score
 
-### Step 8 — Write-up
+### Step 8 — Write-up test
 - [ ] Results tables and figures
 - [ ] Error analysis with example emails
 - [ ] Limitations (era gap, lost URLs, limited modern phishing)
