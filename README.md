@@ -40,8 +40,10 @@ python3 src/build_dataset.py            # standard library only, ~20 s
 ```
 
 This cleans the emails (HTML/CSS removal, whitespace, years masked as
-`[YEAR]`), removes duplicates, and writes reproducible splits (seed 42) to
-`data/processed/`:
+`[YEAR]`), removes duplicates, drops emails with anonymization artifacts
+(SpamAssassin's `taint.org` addresses, which appear only in legitimate mail and
+were misread as spoofing by the base models), and writes reproducible splits
+(seed 42) to `data/processed/`:
 
 | Split | Total | Phishing | Legit | Nazario | Nigerian |
 |---|---|---|---|---|---|
@@ -94,9 +96,17 @@ Indicators must come from a fixed list so they can be counted across models:
 `unexpected_attachment`, `money_or_reward`, `poor_grammar`,
 `generic_greeting`, `none`.
 
+The prompt also tells the model that years were replaced with `[YEAR]` on
+purpose (in v1, Qwen treated the placeholder as a scam sign).
+
 Settings: zero-shot, greedy decoding (temperature 0), each model's own chat
 template, 4-bit NF4 loading for every model, Qwen's thinking mode off.
 Answers that cannot be parsed are counted as wrong.
+
+The prompt is versioned (`PROMPT_VERSION` in `src/prompts.py`, currently
+**v2**) and the version is part of every results file name. Bump it whenever
+the prompt, email formatting or indicator list changes. Only change the prompt
+based on **validation** results, never test results.
 
 ## Running the baselines (Colab)
 
@@ -127,7 +137,7 @@ Tips:
 
 | What | Where | Kept after the session? |
 |---|---|---|
-| Model answers (raw text + parsed fields) | `MyDrive/llm-phishing/results/raw/<model>_<split>_<N>.jsonl` | Yes (Google Drive) |
+| Model answers (raw text + parsed fields) | `MyDrive/llm-phishing/results/raw/<model>_<split>_<N>_<prompt version>.jsonl` | Yes (Google Drive) |
 | Fine-tuned LoRA adapters (Step 5, ~100–200 MB each) | Google Drive | Yes |
 | Downloaded model weights (~5–6 GB each) | Colab's temporary disk | No — re-downloaded in 1–3 min when needed |
 | Processed dataset | Colab's temporary disk | No — rebuilt from Zenodo in ~30 s |
@@ -164,9 +174,10 @@ data/                # gitignored: zenodo/ (raw) and processed/ (splits)
 - [x] Model-running code with 4-bit loading and resumable results — `src/inference.py`
 
 ### Step 3 — Baselines (Colab, no training)
-- [ ] Accept the Llama 3.1 license on Hugging Face and add `HF_TOKEN` to Colab secrets
-- [ ] Run the 20-email smoke test in `notebooks/01_baselines.ipynb`
-- [ ] Confirm all three models parse close to 100%; fix the prompt on the **val** set if not
+- [x] Accept the Llama 3.1 license on Hugging Face and add `HF_TOKEN` to Colab secrets
+- [x] Run the 20-email smoke test in `notebooks/01_baselines.ipynb` (prompt v1: all models parsed 20/20; accuracy Llama 18, Qwen 17, Mistral 19)
+- [x] Fix issues found in the smoke test: drop `taint.org` emails from the dataset; explain `[YEAR]` in the prompt (v2)
+- [ ] Re-run the 20-email smoke test with prompt v2 and confirm all three models still parse close to 100%
 - [ ] Full run: Llama 3.1 8B, Qwen 3.5 9B, Mistral 7B on all 1,000 test emails
 
 ### Step 4 — Explanation targets for training

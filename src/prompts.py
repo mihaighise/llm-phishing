@@ -53,6 +53,15 @@ INDICATORS = {
     "none": "no suspicious characteristics (use only for legitimate emails)",
 }
 
+# Version of the prompt + parser. It is included in every results file name,
+# so answers produced with an older prompt are never mixed with (or mistaken
+# for) answers from a newer one. INCREASE IT whenever SYSTEM_PROMPT,
+# format_email() or the indicator list changes.
+#   v1 — first version (20-email smoke test, 2026-11-15)
+#   v2 — explains the [YEAR] placeholder; Qwen read it as a sign of a
+#        template/scam email in the v1 smoke test
+PROMPT_VERSION = "v2"
+
 # The two allowed labels. Keeping them in constants avoids typos elsewhere.
 PHISHING = "phishing"
 LEGITIMATE = "legitimate"
@@ -70,6 +79,8 @@ SYSTEM_PROMPT = f"""You are an email security analyst. Your job is to decide whe
 Phishing includes any email that tries to deceive the reader into revealing sensitive information, clicking a malicious link, opening a harmful attachment, or sending money (including advance-fee scams).
 
 Some emails had their link addresses removed during data collection. The line "Contains links: yes" tells you the original email contained links even if you cannot see them.
+
+All years in the emails have been replaced with the placeholder [YEAR] for anonymization. This was done to every email, so [YEAR] is not a sign of phishing.
 
 Choose indicators ONLY from this list:
 {_indicator_lines}

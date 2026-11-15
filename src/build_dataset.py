@@ -17,6 +17,7 @@ PIPELINE (in the order the code runs)
                            Nigerian_5.csv and SpamAssasin.csv
 2. CLEAN    Strip leftover HTML/CSS, decode HTML entities, collapse
              whitespace, optionally hide years, and cut very long bodies.
+             Drop emails with anonymization artifacts (e.g. "taint.org").
 3. DEDUP    Remove exact duplicates (the legit files share many emails),
              and drop any email that appears with BOTH labels (ambiguous).
 4. SPLIT    Carve out a fixed test set (1,000) and validation set (400)
@@ -100,6 +101,20 @@ MAX_BODY_CHARS = 4000
 # Emails whose cleaned body is shorter than this are dropped — they are
 # usually empty shells (attachment-only mails) with nothing to classify.
 MIN_BODY_CHARS = 20
+
+# Text that exists only because of how one corpus was ANONYMIZED, not because
+# of anything the real email said. Emails containing these markers (in the
+# sender, subject or body) are dropped.
+#
+#   "taint.org" — the SpamAssassin collectors replaced real addresses with
+#   ...@spamassassin.taint.org. It appears ONLY in legitimate emails, which
+#   causes two problems we saw in the validation smoke test:
+#     1. Base models read it as a spoofed/spam sender and wrongly flag the
+#        email as phishing ("originates from a known spam source").
+#     2. A fine-tuned model could learn the shortcut "taint.org = legitimate"
+#        instead of real phishing cues.
+#   Dropping these removes ~10% of legitimate emails; plenty remain.
+ARTIFACT_MARKERS = ["taint.org"]
 
 
 # ===========================================================================
@@ -254,6 +269,14 @@ def load_emails(raw_dir: Path, mask_years: bool):
                 sender = SPACES_RE.sub(
                     " ", unicodedata.normalize("NFKC", row.get("sender") or "")
                 ).strip()
+
+                # Drop emails carrying anonymization artifacts (see
+                # ARTIFACT_MARKERS above). Lower-cased so "Taint.Org" also
+                # matches.
+                full_text = f"{sender}\n{subject}\n{body}".lower()
+                if any(marker in full_text for marker in ARTIFACT_MARKERS):
+                    stats[f"artifact_removed:{source}"] += 1
+                    continue
 
                 # The Zenodo "urls" column is "1" when the original email
                 # had links (often the URL text itself was lost when HTML
