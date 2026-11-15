@@ -132,6 +132,10 @@ Tips:
 - If the runtime restarts (crash, disconnect, *Restart session*), run the
   cells again from the top, or at least from the configuration cell; the
   cells that import from `src/` re-add it to the Python path themselves.
+- On a small GPU (free T4, 15 GB), batches that don't fit are split
+  automatically. If you still get `CUDA out of memory`, use
+  *Runtime → Restart session*, set `BATCH_SIZE = 4`, and run all cells again —
+  finished emails are not re-run.
 
 ### What is saved, and what you need to re-run
 

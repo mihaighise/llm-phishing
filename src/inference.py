@@ -114,11 +114,18 @@ def load_model(name: str, adapter_path: str | None = None):
     return model, tokenizer
 
 
-def unload_model(model) -> None:
-    """Free GPU memory so the next model can be loaded in the same session."""
-    del model
-    gc.collect()
-    torch.cuda.empty_cache()
+def free_gpu_memory() -> None:
+    """Release GPU memory that is no longer referenced by any variable.
+
+    IMPORTANT: this cannot delete a model that some variable still points to.
+    A function can only delete its OWN reference, so the caller must first
+    run `del model, tokenizer` in the notebook, and THEN call this.
+    (An earlier version took `model` as an argument and deleted it here; the
+    notebook's own `model` variable kept the model alive, so the next model
+    was loaded on top of it and the T4 ran out of memory.)
+    """
+    gc.collect()              # destroy Python objects nobody references
+    torch.cuda.empty_cache()  # hand their freed GPU memory back to the GPU
 
 
 def _render_prompt(tokenizer, email: dict, template_kwargs: dict) -> str:
@@ -167,6 +174,41 @@ def generate_batch(model, tokenizer, emails: list, template_kwargs: dict,
     return tokenizer.batch_decode(answer_tokens, skip_special_tokens=True)
 
 
+def _generate_safely(model, tokenizer, emails: list, template_kwargs: dict,
+                     max_new_tokens: int) -> list:
+    """Like generate_batch(), but survives "CUDA out of memory".
+
+    A batch of several long emails can need more GPU memory than a small GPU
+    (e.g. the free T4) has. Instead of crashing the whole run, we split the
+    batch in half and try each half separately, repeating until it fits —
+    down to a single email. Only if ONE email alone does not fit do we give up.
+    Answers are identical either way: with greedy decoding, batch size does
+    not change what the model writes (apart from rare tiny numerical
+    differences).
+    """
+    out_of_memory = False
+    try:
+        return generate_batch(model, tokenizer, emails, template_kwargs,
+                              max_new_tokens)
+    except torch.cuda.OutOfMemoryError:
+        if len(emails) == 1:
+            raise  # a single email does not fit: nothing left to try
+        out_of_memory = True
+
+    # We clean up OUTSIDE the `except` block on purpose: while inside it,
+    # Python keeps the error's traceback alive, and the traceback still holds
+    # the huge GPU tensors that caused the error, so memory could not be freed.
+    if out_of_memory:
+        free_gpu_memory()
+        half = len(emails) // 2
+        print(f"\n  out of GPU memory with {len(emails)} emails; "
+              f"retrying as {half} + {len(emails) - half}")
+        return (_generate_safely(model, tokenizer, emails[:half],
+                                 template_kwargs, max_new_tokens)
+                + _generate_safely(model, tokenizer, emails[half:],
+                                   template_kwargs, max_new_tokens))
+
+
 def run_model(name: str, model, tokenizer, emails: list, out_path: Path,
               batch_size: int = 8, max_new_tokens: int = 400) -> list:
     """Run `model` over all `emails`, appending results to `out_path` (JSONL).
@@ -198,8 +240,10 @@ def run_model(name: str, model, tokenizer, emails: list, out_path: Path,
     with open(out_path, "a", encoding="utf-8") as f:
         for i in range(0, len(todo), batch_size):
             batch = todo[i:i + batch_size]
-            answers = generate_batch(model, tokenizer, batch, template_kwargs,
-                                     max_new_tokens)
+            # _generate_safely splits the batch automatically if it does not
+            # fit in GPU memory, instead of crashing the run.
+            answers = _generate_safely(model, tokenizer, batch,
+                                       template_kwargs, max_new_tokens)
             for email, raw in zip(batch, answers):
                 row = {
                     "id": email["id"],
