@@ -181,7 +181,7 @@ data/                # gitignored: zenodo/ (raw) and processed/ (splits)
 - [x] Accept the Llama 3.1 license on Hugging Face and add `HF_TOKEN` to Colab secrets
 - [x] Run the 20-email smoke test in `notebooks/01_baselines.ipynb` (prompt v1: all models parsed 20/20; accuracy Llama 18, Qwen 17, Mistral 19)
 - [x] Fix issues found in the smoke test: drop `taint.org` emails from the dataset; explain `[YEAR]` in the prompt (v2)
-- [ ] Re-run the 20-email smoke test with prompt v2 and confirm all three models still parse close to 100%
+- [x] Re-run the 20-email smoke test with prompt v2 (all models parsed 20/20; accuracy Llama 17, Qwen 20, Mistral 19; no `[YEAR]` or `taint.org` confusion)
 - [ ] Full run: Llama 3.1 8B, Qwen 3.5 9B, Mistral 7B on all 1,000 test emails
 
 ### Step 4 — Explanation targets for training
