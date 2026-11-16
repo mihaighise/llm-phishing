@@ -132,6 +132,10 @@ Tips:
 - If the runtime restarts (crash, disconnect, *Restart session*), run the
   cells again from the top, or at least from the configuration cell; the
   cells that import from `src/` re-add it to the Python path themselves.
+- GPU choice: an L4 or A100 (Colab Pro) is recommended for the full test run
+  (`BATCH_SIZE = 16`). On those GPUs the setup cell also installs
+  `flash-linear-attention`, which makes Qwen 3.5 several times faster; on a
+  T4 it is skipped and Qwen takes ~30 s per email (~9 h for 1,000 emails).
 - On a small GPU (free T4, 15 GB), batches that don't fit are split
   automatically. If you still get `CUDA out of memory`, use
   *Runtime → Restart session*, set `BATCH_SIZE = 4`, and run all cells again —
