@@ -121,9 +121,10 @@ based on **validation** results, never test results.
 4. *Runtime → Run all.*
 
 The notebook rebuilds the dataset from Zenodo (verified byte-identical to the
-local build), runs a 20-email smoke test on the validation set, and saves
-answers to `MyDrive/llm-phishing/results/raw/`. For the full run, set
-`SPLIT = "test"` and `N_EMAILS = None`.
+local build), runs all 1,000 test emails through each model, and saves
+answers to `MyDrive/llm-phishing/results/raw/`. For a quick 20-email smoke
+test instead (e.g. after changing the prompt), set `SPLIT = "val"` and
+`N_EMAILS = 20`.
 
 Tips:
 - To get the latest notebook, re-open it from the Colab link above — Colab
