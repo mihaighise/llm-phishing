@@ -72,6 +72,13 @@ Each line of a `.jsonl` file is one email:
 - **Lost URLs:** most Nazario emails had their link text removed during the
   original HTML-to-text conversion; only a `has_urls` flag remains.
 - **Limited modern phishing:** ~1,500 unique Nazario emails.
+- **Topic/source shortcut:** a bag-of-words classifier reaches 98.6% on the
+  test set, because each source has its own vocabulary (Linux mailing-list
+  jargon = legitimate, 419-scam wording = phishing). See
+  [Shortcut check](#shortcut-check-bag-of-words-baseline).
+- **Near-duplicates across splits:** de-duplication is exact-match only, so
+  109 test emails are ≥80% identical to a training email (mostly templated
+  419 scams). Results should also be reported on the 891 remaining emails.
 
 ## Prompt and output format
 
@@ -191,10 +198,53 @@ Observations:
   correct in all 24; counting them gives 94.6% accuracy. The strict number
   above is the main result because the rule was fixed before the run — we do
   not change the parser after seeing test results.
-- **Near-perfect phishing recall** may partly reflect the era shortcut (see
-  Known limitations); the bag-of-words check in Step 1 will tell.
+- **The labels are easy on this dataset:** a bag-of-words classifier beats
+  every LLM (see below), so classification accuracy alone says little about
+  understanding phishing.
 - Raw answer files are not in git (`results/raw/` is ignored); they live in
   Google Drive.
+
+## Shortcut check (bag-of-words baseline)
+
+`src/shortcut_check.py` trains a multinomial Naive Bayes classifier (word
+counts only, standard library, ~1 s) and tests it on the same 1,000 test
+emails. Results are saved to `results/shortcut_check.json`.
+
+```
+python3 src/shortcut_check.py
+```
+
+| Classifier | Trained on | Accuracy | F1 |
+|---|---|---|---|
+| Naive Bayes, full email text (what the LLMs see) | `train_full` (8,248) | **98.6%** | **0.986** |
+| Naive Bayes, full email text | `train_500` | 97.8% | 0.978 |
+| Naive Bayes, body only | `train_full` | 98.1% | 0.981 |
+| Naive Bayes, subject only | `train_full` | 95.7% | 0.957 |
+| Naive Bayes, "From:" line only | `train_full` | 92.6% | 0.924 |
+| Qwen 3.5 9B, zero-shot | — | 92.2% | 0.947 |
+| Mistral 7B, zero-shot | — | 89.3% | 0.903 |
+| Llama 3.1 8B, zero-shot | — | 87.7% | 0.891 |
+
+Words the model relies on most:
+- **Legitimate:** `ilug, razor, rpm, spamassassin, exmh, perl, redhat,
+  linux, kernel, listinfo` — the legitimate emails are largely Linux / tech
+  mailing-list traffic.
+- **Phishing:** `beneficiary, consignment, abidjan, lagos, barrister,
+  deceased, nigeria` — formulaic 419 advance-fee scam wording.
+
+So the shortcut is less about era than about **topic and source**. Excluding
+the 109 near-duplicate test emails barely changes this (Naive Bayes 98.5%;
+LLMs drop ~1 point).
+
+What it means for the project:
+- The **zero-shot** LLM results are still meaningful: the LLMs never saw our
+  training data, so they could not learn the shortcut — and their errors are
+  exactly the mailing-list mail Naive Bayes finds easy.
+- A **fine-tuned** model will likely learn the shortcut too. Naive Bayes is
+  therefore reported as a baseline row in every results table: a fine-tuned
+  model's accuracy is only impressive relative to 98.6%.
+- **Explanation quality** (Step 7) is where LLMs can show what word counting
+  cannot, so it carries more weight in the write-up.
 
 ## Repository layout
 
@@ -203,9 +253,13 @@ src/
   build_dataset.py   # Step 1: clean, de-duplicate, split (runs locally)
   prompts.py         # shared prompt, email formatting, answer parser
   inference.py       # 4-bit model loading + batched generation (Colab GPU)
+  shortcut_check.py  # Step 1: bag-of-words (Naive Bayes) baseline (runs locally)
 notebooks/
   01_baselines.ipynb # Step 3: run Llama / Qwen / Mistral baselines
 data/                # gitignored: zenodo/ (raw) and processed/ (splits)
+results/
+  shortcut_check.json  # Naive Bayes scores + top words
+  raw/               # gitignored: model answers (copies from Google Drive)
 ```
 
 ## Project checklist
@@ -214,7 +268,7 @@ data/                # gitignored: zenodo/ (raw) and processed/ (splits)
 - [x] Choose a phishing dataset (Zenodo curated corpora; rejected the original spam CSV)
 - [x] Clean, de-duplicate and split into test / val / nested train sets — `src/build_dataset.py`
 - [x] Verify splits are reproducible and leak-free
-- [ ] Shortcut check: train a simple bag-of-words classifier; if it scores ~99%, document the era shortcut
+- [x] Shortcut check: bag-of-words Naive Bayes scores 98.6% — topic/source shortcut documented — `src/shortcut_check.py`
 
 ### Step 2 — Prompt and output format ✅
 - [x] Fixed indicator list, system prompt, email formatting — `src/prompts.py`
@@ -244,6 +298,8 @@ data/                # gitignored: zenodo/ (raw) and processed/ (splits)
 - [ ] Confusion matrices and per-source results (Nazario vs Nigerian)
 - [ ] Parse-failure rate per model
 - [ ] Learning-curve plot (F1 vs training size)
+- [ ] Naive Bayes as a baseline row in every table (and on the learning curve)
+- [ ] Also report every model on the 891 test emails without near-duplicates in training
 
 ### Step 7 — Explanation evaluation
 - [ ] Sample ~100 test emails; collect every model's explanation

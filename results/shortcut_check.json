@@ -1,0 +1,218 @@
+{
+  "runs": [
+    {
+      "train_set": "train_500",
+      "train_size": 500,
+      "features": "full",
+      "accuracy": 0.978,
+      "precision": 0.972,
+      "recall": 0.984,
+      "f1": 0.978,
+      "false_alarms": 14,
+      "missed_phishing": 8,
+      "per_source": {
+        "legit_naz5": "125/132",
+        "legit_nig5": "109/114",
+        "nazario": "292/300",
+        "nigerian": "200/200",
+        "spamassassin": "252/254"
+      }
+    },
+    {
+      "train_set": "train_500",
+      "train_size": 500,
+      "features": "body",
+      "accuracy": 0.966,
+      "precision": 0.955,
+      "recall": 0.978,
+      "f1": 0.966,
+      "false_alarms": 23,
+      "missed_phishing": 11,
+      "per_source": {
+        "legit_naz5": "120/132",
+        "legit_nig5": "105/114",
+        "nazario": "289/300",
+        "nigerian": "200/200",
+        "spamassassin": "252/254"
+      }
+    },
+    {
+      "train_set": "train_500",
+      "train_size": 500,
+      "features": "subject",
+      "accuracy": 0.914,
+      "precision": 0.919,
+      "recall": 0.908,
+      "f1": 0.913,
+      "false_alarms": 40,
+      "missed_phishing": 46,
+      "per_source": {
+        "legit_naz5": "117/132",
+        "legit_nig5": "100/114",
+        "nazario": "270/300",
+        "nigerian": "184/200",
+        "spamassassin": "243/254"
+      }
+    },
+    {
+      "train_set": "train_500",
+      "train_size": 500,
+      "features": "sender",
+      "accuracy": 0.813,
+      "precision": 0.791,
+      "recall": 0.85,
+      "f1": 0.82,
+      "false_alarms": 112,
+      "missed_phishing": 75,
+      "per_source": {
+        "legit_naz5": "105/132",
+        "legit_nig5": "92/114",
+        "nazario": "274/300",
+        "nigerian": "151/200",
+        "spamassassin": "191/254"
+      }
+    },
+    {
+      "train_set": "train_full",
+      "train_size": 8248,
+      "features": "full",
+      "accuracy": 0.986,
+      "precision": 0.994,
+      "recall": 0.978,
+      "f1": 0.986,
+      "false_alarms": 3,
+      "missed_phishing": 11,
+      "per_source": {
+        "legit_naz5": "132/132",
+        "legit_nig5": "111/114",
+        "nazario": "289/300",
+        "nigerian": "200/200",
+        "spamassassin": "254/254"
+      }
+    },
+    {
+      "train_set": "train_full",
+      "train_size": 8248,
+      "features": "body",
+      "accuracy": 0.981,
+      "precision": 0.99,
+      "recall": 0.972,
+      "f1": 0.981,
+      "false_alarms": 5,
+      "missed_phishing": 14,
+      "per_source": {
+        "legit_naz5": "130/132",
+        "legit_nig5": "111/114",
+        "nazario": "286/300",
+        "nigerian": "200/200",
+        "spamassassin": "254/254"
+      }
+    },
+    {
+      "train_set": "train_full",
+      "train_size": 8248,
+      "features": "subject",
+      "accuracy": 0.957,
+      "precision": 0.956,
+      "recall": 0.958,
+      "f1": 0.957,
+      "false_alarms": 22,
+      "missed_phishing": 21,
+      "per_source": {
+        "legit_naz5": "121/132",
+        "legit_nig5": "106/114",
+        "nazario": "283/300",
+        "nigerian": "196/200",
+        "spamassassin": "251/254"
+      }
+    },
+    {
+      "train_set": "train_full",
+      "train_size": 8248,
+      "features": "sender",
+      "accuracy": 0.926,
+      "precision": 0.953,
+      "recall": 0.896,
+      "f1": 0.924,
+      "false_alarms": 22,
+      "missed_phishing": 52,
+      "per_source": {
+        "legit_naz5": "126/132",
+        "legit_nig5": "108/114",
+        "nazario": "271/300",
+        "nigerian": "177/200",
+        "spamassassin": "244/254"
+      }
+    }
+  ],
+  "top_words": {
+    "phishing": [
+      "kin",
+      "foreigner",
+      "beneficiary",
+      "usaa",
+      "consignment",
+      "abidjan",
+      "senegal",
+      "cote",
+      "disbursement",
+      "abacha",
+      "lagos",
+      "liberia",
+      "dakar",
+      "unclaimed",
+      "remittance",
+      "5m",
+      "barrister",
+      "deposit",
+      "leone",
+      "asylum",
+      "deceased",
+      "nigeria",
+      "engr",
+      "d'ivoire",
+      "furnish"
+    ],
+    "legitimate": [
+      "ilug",
+      "razor",
+      "rpm",
+      "spamassassin",
+      "exmh",
+      "perl",
+      "cnet",
+      "zdnet",
+      "spambayes",
+      "redhat",
+      "freshrpms",
+      "linux",
+      "py",
+      "listmaster",
+      "users'",
+      "maintainer",
+      "kernel",
+      "pgp",
+      "matthias",
+      "bug",
+      "listinfo",
+      "xent",
+      "stat",
+      "usr",
+      "ethz"
+    ]
+  },
+  "llm_baselines": {
+    "Llama 3.1 8B": {
+      "accuracy": 0.877,
+      "f1": 0.891
+    },
+    "Qwen 3.5 9B": {
+      "accuracy": 0.922,
+      "f1": 0.947
+    },
+    "Mistral 7B": {
+      "accuracy": 0.893,
+      "f1": 0.903
+    }
+  }
+}
