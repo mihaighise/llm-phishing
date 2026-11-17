@@ -66,6 +66,9 @@ Each line of a `.jsonl` file is one email:
 - **Era gap:** phishing emails are mostly 2015–2022, legitimate ones 1992–2008.
   Dates and receivers are dropped and years are masked to reduce this
   shortcut, but writing style and topics can still reveal the era.
+- **Short dates slip through:** only four-digit years are masked, so dates
+  like `7/19/01` inside the body remain. In the baseline run, 5–11
+  explanations per model (~1%) mention a date or the email's age.
 - **Lost URLs:** most Nazario emails had their link text removed during the
   original HTML-to-text conversion; only a `has_urls` flag remains.
 - **Limited modern phishing:** ~1,500 unique Nazario emails.
@@ -157,6 +160,42 @@ Tips:
 - Metrics and explanation scoring (Steps 6–7) only read the saved answer
   files, so they need no GPU and can run locally.
 
+## Baseline results (prompt v2, 1,000 test emails)
+
+Zero-shot, run on an L4 on 2026-11-17. Unparseable answers count as wrong;
+"phishing" is the positive class. Quick numbers — the full metrics script
+(confusion matrices etc.) is still to do in Step 6.
+
+| Model | Parsed | Accuracy | Precision | Recall | F1 | False alarms | Missed phishing |
+|---|---|---|---|---|---|---|---|
+| Llama 3.1 8B | 999 | 87.7% | 0.805 | 0.998 | 0.891 | 121 | 1 |
+| Qwen 3.5 9B | 976 | **92.2%** | **0.902** | 0.996 | **0.947** | 54 | 2 |
+| Mistral 7B | 998 | 89.3% | 0.831 | 0.990 | 0.903 | 101 | 5 |
+
+Correct answers per source:
+
+| Source | Llama | Qwen | Mistral |
+|---|---|---|---|
+| Nazario phishing (300) | 299 | 300 | 296 |
+| Nigerian fraud (200) | 200 | 200 | 200 |
+| SpamAssassin legitimate (254) | 205 | 233 | 198 |
+| Nazario_5 legitimate (132) | 94 | 114 | 109 |
+| Nigerian_5 legitimate (114) | 79 | 99 | 91 |
+
+Observations:
+- **All models over-flag phishing.** Recall is 99–100%; almost every error
+  is a legitimate email (most often SpamAssassin mailing-list mail) labelled
+  phishing. Reducing these false alarms is what fine-tuning has to improve.
+- **Qwen's 24 parse failures** are complete answers missing only the final
+  `}` (not cut off by the length limit). The label is readable in all 24 and
+  correct in all 24; counting them gives 94.6% accuracy. The strict number
+  above is the main result because the rule was fixed before the run — we do
+  not change the parser after seeing test results.
+- **Near-perfect phishing recall** may partly reflect the era shortcut (see
+  Known limitations); the bag-of-words check in Step 1 will tell.
+- Raw answer files are not in git (`results/raw/` is ignored); they live in
+  Google Drive.
+
 ## Repository layout
 
 ```
@@ -182,12 +221,12 @@ data/                # gitignored: zenodo/ (raw) and processed/ (splits)
 - [x] Robust JSON parser, tested on messy outputs
 - [x] Model-running code with 4-bit loading and resumable results — `src/inference.py`
 
-### Step 3 — Baselines (Colab, no training)
+### Step 3 — Baselines (Colab, no training) ✅
 - [x] Accept the Llama 3.1 license on Hugging Face and add `HF_TOKEN` to Colab secrets
 - [x] Run the 20-email smoke test in `notebooks/01_baselines.ipynb` (prompt v1: all models parsed 20/20; accuracy Llama 18, Qwen 17, Mistral 19)
 - [x] Fix issues found in the smoke test: drop `taint.org` emails from the dataset; explain `[YEAR]` in the prompt (v2)
 - [x] Re-run the 20-email smoke test with prompt v2 (all models parsed 20/20; accuracy Llama 17, Qwen 20, Mistral 19; no `[YEAR]` or `taint.org` confusion)
-- [ ] Full run: Llama 3.1 8B, Qwen 3.5 9B, Mistral 7B on all 1,000 test emails
+- [x] Full run: Llama 3.1 8B, Qwen 3.5 9B, Mistral 7B on all 1,000 test emails (F1: Qwen 0.947, Mistral 0.903, Llama 0.891 — see [Baseline results](#baseline-results-prompt-v2-1000-test-emails))
 
 ### Step 4 — Explanation targets for training
 - [ ] Generate a reasoning + indicators answer for each training email with a larger model, given the true label
