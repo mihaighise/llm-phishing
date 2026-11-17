@@ -157,7 +157,8 @@ Tips:
 | What | Where | Kept after the session? |
 |---|---|---|
 | Model answers (raw text + parsed fields) | `MyDrive/llm-phishing/results/raw/<model>_<split>_<N>_<prompt version>.jsonl` | Yes (Google Drive) |
-| Fine-tuned LoRA adapters (Step 5, ~100–200 MB each) | Google Drive | Yes |
+| Fine-tuned LoRA adapters (Step 5, ~100–200 MB each) | `MyDrive/llm-phishing/finetune/<run>/adapter/` | Yes (Google Drive) |
+| Training checkpoints (one per epoch, for resuming) | `MyDrive/llm-phishing/finetune/<run>/checkpoints/` | Yes (Google Drive) — can be deleted once the adapter exists |
 | Downloaded model weights (~5–6 GB each) | Colab's temporary disk | No — re-downloaded in 1–3 min when needed |
 | Processed dataset | Colab's temporary disk | No — rebuilt from Zenodo in ~30 s |
 
@@ -166,6 +167,34 @@ Tips:
   continues where it stopped.
 - Metrics and explanation scoring (Steps 6–7) only read the saved answer
   files, so they need no GPU and can run locally.
+
+## Fine-tuning Llama 3.1 8B (Colab)
+
+[`notebooks/02_finetune.ipynb` in Colab](https://colab.research.google.com/github/mihaighise/llm-phishing/blob/main/notebooks/02_finetune.ipynb)
+— same setup as the baselines (GPU runtime, `HF_TOKEN`), then *Run all*.
+Training logic is in `src/finetune.py`.
+
+- **Label-only QLoRA:** the model gets exactly the baseline prompt and email
+  and learns to answer `{"label": "phishing"}` / `{"label": "legitimate"}`.
+  Only the answer tokens are graded (the prompt is masked out of the loss).
+  Fine-tuning on explanations is a separate, later run, which also tests
+  whether explanations change classification.
+- **Settings:** 4-bit Llama (same precision as the baselines), LoRA rank 16
+  on all attention and feed-forward layers, learning rate 2e-4 (cosine),
+  16 emails per update, 2 epochs. The epoch with the lowest **validation**
+  loss is kept; the test set is used only for the final evaluation.
+  Training emails over 2,048 tokens are skipped (23 of 8,248, 0.3%).
+- **One training set per run:** set `TRAIN_SET` (`train_500`, `train_1500`,
+  `train_3000`, `train_full`) and *Run all*. Each run has its own Drive
+  folder `MyDrive/llm-phishing/finetune/llama31_8b_ft_<train set>/`.
+- **Rough L4 times** (2 epochs): `train_500` ~10–20 min, `train_1500`
+  ~30–50 min, `train_3000` ~1–1.5 h, `train_full` ~3–5 h, plus ~5 min of
+  evaluation. A checkpoint is saved after every epoch, so after a disconnect
+  *Run all* continues where it stopped; a finished adapter is never retrained.
+- **Results:** `results/raw/llama31_8b_ft_<train set>_{val,test}_all_v2.jsonl`
+  in Drive. Download the test file to `results/raw/` and run
+  `python3 src/metrics.py`; it appears as "Llama 3.1 8B fine-tuned
+  (<train set>)" in every table.
 
 ## Baseline results (prompt v2, 1,000 test emails)
 
@@ -255,10 +284,12 @@ src/
   build_dataset.py   # Step 1: clean, de-duplicate, split (runs locally)
   prompts.py         # shared prompt, email formatting, answer parser
   inference.py       # 4-bit model loading + batched generation (Colab GPU)
+  finetune.py        # Step 5: label-only QLoRA training of Llama (Colab GPU)
   shortcut_check.py  # Step 1: bag-of-words (Naive Bayes) baseline (runs locally)
   metrics.py         # Step 6: classification metrics for every results file (runs locally)
 notebooks/
   01_baselines.ipynb # Step 3: run Llama / Qwen / Mistral baselines
+  02_finetune.ipynb  # Step 5: QLoRA fine-tune Llama, evaluate on val + test
 data/                # gitignored: zenodo/ (raw) and processed/ (splits)
 results/
   shortcut_check.json  # Naive Bayes scores + top words
@@ -293,7 +324,7 @@ results/
 - [ ] Save as chat-format training files (prompt → `format_answer()` JSON)
 
 ### Step 5 — Fine-tune Llama 3.1 8B (Colab)
-- [ ] QLoRA training notebook (`notebooks/02_finetune.ipynb`)
+- [x] QLoRA training notebook (`notebooks/02_finetune.ipynb`, logic in `src/finetune.py`) — label-only; tested locally with the real Llama tokenizer and a tiny model
 - [ ] Train on `train_3000`; pick the best checkpoint on the val set
 - [ ] Learning curve: also train on `train_500`, `train_1500`, `train_full`
 - [ ] Run the fine-tuned model(s) on the same 1,000 test emails

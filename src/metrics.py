@@ -275,6 +275,11 @@ def evaluate(answers: dict, emails: list, rule: str) -> dict:
 # ===========================================================================
 
 def _name(key: str) -> str:
+    # Fine-tuned models are saved as "<base>_ft_<training set>", e.g.
+    # "llama31_8b_ft_train_3000" -> "Llama 3.1 8B fine-tuned (train_3000)".
+    if "_ft_" in key:
+        base, train_set = key.split("_ft_", 1)
+        return f"{MODEL_NAMES.get(base, base)} fine-tuned ({train_set})"
     return MODEL_NAMES.get(key, key)
 
 

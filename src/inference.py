@@ -256,13 +256,18 @@ def run_model(name: str, model, tokenizer, emails: list, out_path: Path,
                 f.write(json.dumps(row, ensure_ascii=False) + "\n")
             f.flush()  # make sure the batch is on disk before continuing
 
-            # Simple progress report with an estimated time remaining.
+            # Progress report with an estimated time remaining, about every
+            # 10% of the run and after the last batch. Each report is a new
+            # line: an earlier version overwrote one line with "\r", which
+            # Colab did not display, so the counter looked stuck at 0.
             n_done = i + len(batch)
-            rate = n_done / (time.time() - start)
-            eta_min = (len(todo) - n_done) / rate / 60
-            print(f"[{name}] {n_done}/{len(todo)}  ({rate:.2f} emails/s, "
-                  f"~{eta_min:.0f} min left)", end="\r")
-    print()
+            report_every = max(batch_size, len(todo) // 10)
+            if n_done // report_every != (n_done - len(batch)) // report_every \
+                    or n_done == len(todo):
+                rate = n_done / (time.time() - start)
+                eta_min = (len(todo) - n_done) / rate / 60
+                print(f"[{name}] {n_done}/{len(todo)}  ({rate:.2f} emails/s, "
+                      f"~{eta_min:.0f} min left)", flush=True)
 
     # Return every result for this model (old + new) for quick inspection.
     with open(out_path, encoding="utf-8") as f:
