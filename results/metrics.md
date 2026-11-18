@@ -113,3 +113,43 @@ F1 by number of training emails. Plot: `results/learning_curve.svg`.
 | train_full | 8,248 | 0.986 | not run yet |
 
 Zero-shot reference (no training emails): Llama 3.1 8B 0.891, Mistral 7B 0.903, Qwen 3.5 9B 0.947.
+
+## Cross-source test — one source left out of training
+
+Each `train_1500_no_<source>` set has 1,500 balanced emails and none from `<source>`: that source is replaced by the other source(s) of the same label (see `build_dataset.py`). It is compared with `train_1500`, which contains every source. **Held out** = the test emails from the left-out source; **in-source** = all other test emails. Strict scoring. Zero-shot LLMs never saw any training email, so they are listed as a reference.
+
+### Nazario phishing held out
+
+| Model | Trained on Nazario phishing? | Held out: correct of 300 (95% CI) | In-source accuracy (700) | In-source F1 |
+|---|---|---|---|---|
+| Llama 3.1 8B | — (zero-shot) | 299/300 = 99.7% (99.0%–100.0%) | 82.6% | 0.768 |
+| Mistral 7B | — (zero-shot) | 295/300 = 98.3% (96.7%–99.7%) | 85.4% | 0.798 |
+| Qwen 3.5 9B | — (zero-shot) | 299/300 = 99.7% (99.0%–100.0%) | 89.0% | 0.879 |
+| Naive Bayes (train_1500) | yes | 294/300 = 98.0% (96.3%–99.3%) | 98.7% | 0.978 |
+| Naive Bayes (train_1500_no_nazario) | **no** | 125/300 = 41.7% (36.0%–47.7%) | 99.0% | 0.983 |
+| Llama 3.1 8B fine-tuned (train_1500) | yes | 299/300 = 99.7% (99.0%–100.0%) | 99.7% | 0.995 |
+| Llama 3.1 8B fine-tuned (train_1500_no_nazario) | **no** | not run yet | | |
+
+### Nigerian fraud held out
+
+| Model | Trained on Nigerian fraud? | Held out: correct of 200 (95% CI) | In-source accuracy (800) | In-source F1 |
+|---|---|---|---|---|
+| Llama 3.1 8B | — (zero-shot) | 200/200 = 100.0% (100.0%–100.0%) | 84.6% | 0.831 |
+| Mistral 7B | — (zero-shot) | 200/200 = 100.0% (100.0%–100.0%) | 86.6% | 0.848 |
+| Qwen 3.5 9B | — (zero-shot) | 199/200 = 99.5% (98.5%–100.0%) | 90.4% | 0.916 |
+| Naive Bayes (train_1500) | yes | 200/200 = 100.0% (100.0%–100.0%) | 98.1% | 0.975 |
+| Naive Bayes (train_1500_no_nigerian) | **no** | 32/200 = 16.0% (11.0%–21.0%) | 98.9% | 0.985 |
+| Llama 3.1 8B fine-tuned (train_1500) | yes | 200/200 = 100.0% (100.0%–100.0%) | 99.6% | 0.995 |
+| Llama 3.1 8B fine-tuned (train_1500_no_nigerian) | **no** | not run yet | | |
+
+### SpamAssassin legitimate held out
+
+| Model | Trained on SpamAssassin legitimate? | Held out: correct of 254 (95% CI) | In-source accuracy (746) | In-source F1 |
+|---|---|---|---|---|
+| Llama 3.1 8B | — (zero-shot) | 205/254 = 80.7% (75.6%–85.0%) | 90.1% | 0.932 |
+| Mistral 7B | — (zero-shot) | 198/254 = 78.0% (72.8%–83.1%) | 93.2% | 0.951 |
+| Qwen 3.5 9B | — (zero-shot) | 220/254 = 86.6% (81.9%–90.6%) | 94.1% | 0.966 |
+| Naive Bayes (train_1500) | yes | 253/254 = 99.6% (98.8%–100.0%) | 98.1% | 0.986 |
+| Naive Bayes (train_1500_no_spamassassin) | **no** | 253/254 = 99.6% (98.8%–100.0%) | 98.5% | 0.989 |
+| Llama 3.1 8B fine-tuned (train_1500) | yes | 252/254 = 99.2% (98.0%–100.0%) | 99.9% | 0.999 |
+| Llama 3.1 8B fine-tuned (train_1500_no_spamassassin) | **no** | not run yet | | |

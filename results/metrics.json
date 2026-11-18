@@ -1747,5 +1747,262 @@
       "mistral_7b": 0.9032846715328466,
       "qwen35_9b": 0.9467680608365019
     }
-  }
+  },
+  "cross_source": [
+    {
+      "held_out_source": "nazario",
+      "train_set": "train_1500_no_nazario",
+      "n_held_out": 300,
+      "n_in_source": 700,
+      "rows": [
+        {
+          "model": "Llama 3.1 8B",
+          "trained_on_held_out": null,
+          "held_out_correct": 299,
+          "held_out_accuracy": 0.9966666666666667,
+          "held_out_ci95": [
+            0.99,
+            1.0
+          ],
+          "in_source_accuracy": 0.8257142857142857,
+          "in_source_f1": 0.7677543186180421
+        },
+        {
+          "model": "Mistral 7B",
+          "trained_on_held_out": null,
+          "held_out_correct": 295,
+          "held_out_accuracy": 0.9833333333333333,
+          "held_out_ci95": [
+            0.9666666666666667,
+            0.9966666666666667
+          ],
+          "in_source_accuracy": 0.8542857142857143,
+          "in_source_f1": 0.7984031936127746
+        },
+        {
+          "model": "Qwen 3.5 9B",
+          "trained_on_held_out": null,
+          "held_out_correct": 299,
+          "held_out_accuracy": 0.9966666666666667,
+          "held_out_ci95": [
+            0.99,
+            1.0
+          ],
+          "in_source_accuracy": 0.89,
+          "in_source_f1": 0.8785871964679912
+        },
+        {
+          "model": "Naive Bayes (train_1500)",
+          "trained_on_held_out": true,
+          "held_out_correct": 294,
+          "held_out_accuracy": 0.98,
+          "held_out_ci95": [
+            0.9633333333333334,
+            0.9933333333333333
+          ],
+          "in_source_accuracy": 0.9871428571428571,
+          "in_source_f1": 0.9779951100244498
+        },
+        {
+          "model": "Naive Bayes (train_1500_no_nazario)",
+          "trained_on_held_out": false,
+          "held_out_correct": 125,
+          "held_out_accuracy": 0.4166666666666667,
+          "held_out_ci95": [
+            0.36,
+            0.4766666666666667
+          ],
+          "in_source_accuracy": 0.99,
+          "in_source_f1": 0.9826302729528535
+        },
+        {
+          "model": "Llama 3.1 8B fine-tuned (train_1500)",
+          "trained_on_held_out": true,
+          "held_out_correct": 299,
+          "held_out_accuracy": 0.9966666666666667,
+          "held_out_ci95": [
+            0.99,
+            1.0
+          ],
+          "in_source_accuracy": 0.9971428571428571,
+          "in_source_f1": 0.9950248756218906
+        },
+        {
+          "model": "Llama 3.1 8B fine-tuned (train_1500_no_nazario)",
+          "trained_on_held_out": false,
+          "not_run": true
+        }
+      ]
+    },
+    {
+      "held_out_source": "nigerian",
+      "train_set": "train_1500_no_nigerian",
+      "n_held_out": 200,
+      "n_in_source": 800,
+      "rows": [
+        {
+          "model": "Llama 3.1 8B",
+          "trained_on_held_out": null,
+          "held_out_correct": 200,
+          "held_out_accuracy": 1.0,
+          "held_out_ci95": [
+            1.0,
+            1.0
+          ],
+          "in_source_accuracy": 0.84625,
+          "in_source_f1": 0.8305555555555556
+        },
+        {
+          "model": "Mistral 7B",
+          "trained_on_held_out": null,
+          "held_out_correct": 200,
+          "held_out_accuracy": 1.0,
+          "held_out_ci95": [
+            1.0,
+            1.0
+          ],
+          "in_source_accuracy": 0.86625,
+          "in_source_f1": 0.8477011494252873
+        },
+        {
+          "model": "Qwen 3.5 9B",
+          "trained_on_held_out": null,
+          "held_out_correct": 199,
+          "held_out_accuracy": 0.995,
+          "held_out_ci95": [
+            0.985,
+            1.0
+          ],
+          "in_source_accuracy": 0.90375,
+          "in_source_f1": 0.9157733537519142
+        },
+        {
+          "model": "Naive Bayes (train_1500)",
+          "trained_on_held_out": true,
+          "held_out_correct": 200,
+          "held_out_accuracy": 1.0,
+          "held_out_ci95": [
+            1.0,
+            1.0
+          ],
+          "in_source_accuracy": 0.98125,
+          "in_source_f1": 0.9751243781094527
+        },
+        {
+          "model": "Naive Bayes (train_1500_no_nigerian)",
+          "trained_on_held_out": false,
+          "held_out_correct": 32,
+          "held_out_accuracy": 0.16,
+          "held_out_ci95": [
+            0.11,
+            0.21
+          ],
+          "in_source_accuracy": 0.98875,
+          "in_source_f1": 0.9851239669421487
+        },
+        {
+          "model": "Llama 3.1 8B fine-tuned (train_1500)",
+          "trained_on_held_out": true,
+          "held_out_correct": 200,
+          "held_out_accuracy": 1.0,
+          "held_out_ci95": [
+            1.0,
+            1.0
+          ],
+          "in_source_accuracy": 0.99625,
+          "in_source_f1": 0.995008319467554
+        },
+        {
+          "model": "Llama 3.1 8B fine-tuned (train_1500_no_nigerian)",
+          "trained_on_held_out": false,
+          "not_run": true
+        }
+      ]
+    },
+    {
+      "held_out_source": "spamassassin",
+      "train_set": "train_1500_no_spamassassin",
+      "n_held_out": 254,
+      "n_in_source": 746,
+      "rows": [
+        {
+          "model": "Llama 3.1 8B",
+          "trained_on_held_out": null,
+          "held_out_correct": 205,
+          "held_out_accuracy": 0.8070866141732284,
+          "held_out_ci95": [
+            0.7559055118110236,
+            0.8503937007874016
+          ],
+          "in_source_accuracy": 0.900804289544236,
+          "in_source_f1": 0.9318394024276379
+        },
+        {
+          "model": "Mistral 7B",
+          "trained_on_held_out": null,
+          "held_out_correct": 198,
+          "held_out_accuracy": 0.7795275590551181,
+          "held_out_ci95": [
+            0.7283464566929134,
+            0.8307086614173228
+          ],
+          "in_source_accuracy": 0.9316353887399463,
+          "in_source_f1": 0.9510086455331412
+        },
+        {
+          "model": "Qwen 3.5 9B",
+          "trained_on_held_out": null,
+          "held_out_correct": 220,
+          "held_out_accuracy": 0.8661417322834646,
+          "held_out_ci95": [
+            0.8188976377952756,
+            0.905511811023622
+          ],
+          "in_source_accuracy": 0.9410187667560321,
+          "in_source_f1": 0.9660523763336567
+        },
+        {
+          "model": "Naive Bayes (train_1500)",
+          "trained_on_held_out": true,
+          "held_out_correct": 253,
+          "held_out_accuracy": 0.9960629921259843,
+          "held_out_ci95": [
+            0.9881889763779528,
+            1.0
+          ],
+          "in_source_accuracy": 0.9812332439678284,
+          "in_source_f1": 0.9860279441117764
+        },
+        {
+          "model": "Naive Bayes (train_1500_no_spamassassin)",
+          "trained_on_held_out": false,
+          "held_out_correct": 253,
+          "held_out_accuracy": 0.9960629921259843,
+          "held_out_ci95": [
+            0.9881889763779528,
+            1.0
+          ],
+          "in_source_accuracy": 0.985254691689008,
+          "in_source_f1": 0.988988988988989
+        },
+        {
+          "model": "Llama 3.1 8B fine-tuned (train_1500)",
+          "trained_on_held_out": true,
+          "held_out_correct": 252,
+          "held_out_accuracy": 0.9921259842519685,
+          "held_out_ci95": [
+            0.9803149606299213,
+            1.0
+          ],
+          "in_source_accuracy": 0.9986595174262735,
+          "in_source_f1": 0.998998998998999
+        },
+        {
+          "model": "Llama 3.1 8B fine-tuned (train_1500_no_spamassassin)",
+          "trained_on_held_out": false,
+          "not_run": true
+        }
+      ]
+    }
+  ]
 }

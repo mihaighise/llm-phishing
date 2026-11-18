@@ -53,10 +53,20 @@ were misread as spoofing by the base models), and writes reproducible splits
 | train_1500 | 1,500 | 750 | 750 | 450 | 300 |
 | train_3000 | 3,000 | 1,500 | 1,500 | 900 | 600 |
 | train_full | 8,248 | 4,124 | 4,124 | 1,118 | 3,006 |
+| train_1500_no_nazario | 1,500 | 750 | 750 | 0 | 750 |
+| train_1500_no_nigerian | 1,500 | 750 | 750 | 750 | 0 |
+| train_1500_no_spamassassin | 1,500 | 750 | 750 | 450 | 300 |
 
 Training sets are nested (500 ⊂ 1,500 ⊂ 3,000 ⊂ full) for a learning-curve
 experiment on how much fine-tuning data helps. Test and validation emails never
 appear in any training set.
+
+The `train_1500_no_<source>` sets are for the
+[cross-source test](#cross-source-test-one-source-left-out-of-training): each
+leaves one source out completely (replaced by the other source(s) of the same
+label; `train_1500_no_spamassassin` has no SpamAssassin legit emails). Each
+comes with a `val_no_<source>` validation set without that source. Adding them
+did not change any other split file.
 
 Each line of a `.jsonl` file is one email:
 `{id, source, label, sender, subject, body, has_urls, truncated}`.
@@ -286,9 +296,9 @@ Observations:
   phishing, and a phishing email padded with random Arabic words to fool
   filters.
 - **Caveat:** test emails come from the same sources as the training
-  emails, so part of the gain may still be learning each source's style. A
-  cross-source test (train without SpamAssassin, test on it) would show
-  whether it generalises. This model outputs only a label — no explanation.
+  emails, so part of the gain may still be learning each source's style. The
+  [cross-source test](#cross-source-test-one-source-left-out-of-training)
+  checks whether it generalises. This model outputs only a label — no explanation.
   (These bullets describe `train_3000`; smaller sets are compared below.)
 
 ### Effect of training-set size
@@ -339,6 +349,40 @@ exists — so far `train_500`, `train_1500` and `train_3000` have been run. Naiv
 (0.978 → 0.986): the source/topic words it relies on are learnt from 500
 emails already.
 
+### Cross-source test: one source left out of training
+
+Does the model learn *phishing*, or just *this dataset's sources*? Each
+`train_1500_no_<source>` set leaves one source out of training (and out of
+validation); we then test on that source's test emails. Compared with
+`train_1500`, only that one source changes. Full tables:
+[`results/metrics.md`](results/metrics.md#cross-source-test--one-source-left-out-of-training).
+
+Naive Bayes results so far (held-out test emails correct; in-source = all
+other test emails):
+
+| Left out of training | Naive Bayes with it | Naive Bayes without it | Zero-shot LLMs | Fine-tuned Llama without it |
+|---|---|---|---|---|
+| Nazario phishing (300) | 98.0% | **41.7%** | 98.3–99.7% | not run yet |
+| Nigerian fraud (200) | 100.0% | **16.0%** | 99.5–100% | not run yet |
+| SpamAssassin legitimate (254) | 99.6% | 99.6% | 78.0–86.6% | not run yet |
+
+- **Leaving out a phishing source breaks word counting.** Trained only on
+  419 scams, Naive Bayes misses 58% of modern Nazario phishing (and 84% of
+  419 scams when trained only on Nazario). Its in-source accuracy stays at
+  ~99%, so the overall accuracy hides this completely.
+- **Leaving out a legitimate source does not:** "no scam words" is enough to
+  call an email legitimate, whichever mailing list it came from.
+- **The open question** is the fine-tuned Llama: does it keep the general
+  phishing knowledge the zero-shot models clearly have (~99% on both
+  phishing sources), or narrow down to its training source like Naive
+  Bayes? `train_1500_no_nazario` answers the most realistic version
+  (trained on 419 scams only, tested on modern phishing).
+- **Caveat:** the remaining legitimate sources (mostly Enron and other
+  mailing lists such as samba, apache, sourceforge) partly share the style
+  of SpamAssassin, so that test is not a fully unseen genre. No SpamAssassin
+  test email has a near-duplicate (≥50% shared 8-word sequences) in the
+  other legitimate sources.
+
 ## Shortcut check (bag-of-words baseline)
 
 `src/shortcut_check.py` trains a multinomial Naive Bayes classifier (word
@@ -379,7 +423,7 @@ What it means for the project:
   therefore reported as a baseline row in every results table: a fine-tuned
   model's accuracy is only impressive relative to 98.6%. (Outcome: the
   `train_3000` model reached 99.8% — see
-  [Fine-tuned results](#fine-tuned-results-label-only-qlora-train_3000).)
+  [Fine-tuned results](#fine-tuned-results-label-only-qlora-train_500-train_1500-train_3000).)
 - **Explanation quality** (Step 7) is where LLMs can show what word counting
   cannot, so it carries more weight in the write-up.
 
@@ -433,9 +477,9 @@ results/
 ### Step 5 — Fine-tune Llama 3.1 8B (Colab)
 - [x] QLoRA training notebook (`notebooks/02_finetune.ipynb`, logic in `src/finetune.py`) — label-only; tested locally with the real Llama tokenizer and a tiny model
 - [x] Train on `train_3000`; pick the best checkpoint on the val set (val accuracy 99.5%)
-- [x] Run the fine-tuned model on the same 1,000 test emails (99.8% accuracy, F1 0.998 — see [Fine-tuned results](#fine-tuned-results-label-only-qlora-train_3000))
-- [ ] Learning curve: also train on `train_500`, `train_1500` (`train_full` optional; note its different Nazario/Nigerian mix)
-- [ ] Optional: cross-source test — train without SpamAssassin, test on it
+- [x] Run the fine-tuned model on the same 1,000 test emails (99.8% accuracy, F1 0.998 — see [Fine-tuned results](#fine-tuned-results-label-only-qlora-train_500-train_1500-train_3000))
+- [x] Learning curve: also train on `train_500`, `train_1500` (F1 0.997 for both — 500 emails are enough; `train_full` skipped)
+- [ ] Cross-source test — splits, notebook support and metrics done; Naive Bayes results in README. To run: `train_1500_no_nazario` (most informative), `train_1500_no_nigerian`; `train_1500_no_spamassassin` optional
 - [ ] Later: second fine-tune on label + explanations (needs Step 4)
 
 ### Step 6 — Classification metrics

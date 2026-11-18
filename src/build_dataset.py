@@ -26,6 +26,9 @@ PIPELINE (in the order the code runs)
              "Nested" means each smaller set is the first N emails of the
              bigger one, so the learning-curve experiment only changes ONE
              thing (how much data), never which emails are included.
+             Plus CROSS-SOURCE pairs (train_1500_no_<source>,
+             val_no_<source>) that leave one source out completely — see
+             CROSS_SOURCE_HELD_OUT below.
 5. SAVE     Write one JSONL file per split (one JSON object per line) plus
              a stats.json summary, into data/processed/.
 
@@ -92,6 +95,25 @@ TRAIN_SIZES = [500, 1500, 3000]
 # Nazario because it is closer to the phishing people receive today.
 # Used for test, validation and the fixed-size training sets.
 NAZARIO_SHARE = 0.6
+
+# Cross-source test: does a model still recognise emails from a source it
+# NEVER saw in training? For each source below we build:
+#   train_1500_no_<source> — 1,500 balanced emails with none from <source>.
+#                            Held-out PHISHING source: the phishing half all
+#                            comes from the other phishing source; the legit
+#                            half is train_1500's. Held-out LEGIT source: the
+#                            phishing half is train_1500's; the legit half
+#                            comes from the other legit sources.
+#   val_no_<source>        — the validation set minus <source>, so that not
+#                            even checkpoint selection sees it.
+# The test set is unchanged: its <source> emails are the held-out part, all
+# other test emails are "in-source". Compared with train_1500, only ONE
+# thing changes: one source is swapped for the others of the same label.
+# (Naive Bayes shows why the phishing sources matter most: trained without
+# Nazario it catches only ~37% of Nazario phishing; without SpamAssassin
+# it still gets ~99.6% of SpamAssassin right.)
+CROSS_SOURCE_HELD_OUT = ["nazario", "nigerian", "spamassassin"]
+CROSS_SOURCE_SIZE = 1500
 
 # Bodies longer than this (in characters) are cut. ~4,000 characters is
 # roughly 1,000 tokens — long enough to keep the important part of almost
@@ -400,6 +422,32 @@ def split_dataset(emails: list, seed: int) -> dict:
     # practice). This does not change which emails are in each split.
     for name in splits:
         rng.shuffle(splits[name])
+
+    # --- Cross-source pairs (see CROSS_SOURCE_HELD_OUT). Built AFTER the
+    # --- shuffles above on purpose: those use the random generator first,
+    # --- in the same order as before these pairs existed, so every older
+    # --- split file stays byte-for-byte identical.
+    n_phish = CROSS_SOURCE_SIZE // 2
+    n_naz = round(n_phish * NAZARIO_SHARE)
+    for held_out in CROSS_SOURCE_HELD_OUT:
+        # Every list below is a PREFIX of a pool in the order the nested
+        # sets use, so each set keeps as many of train_1500's own emails as
+        # possible and tops up with the next ones from train_full.
+        if held_out == "nazario":
+            phish = nig[:n_phish]
+        elif held_out == "nigerian":
+            phish = naz[:n_phish]
+        else:
+            phish = naz[:n_naz] + nig[:n_phish - n_naz]
+        other_legit = [e for e in legit if e["source"] != held_out]
+        if n_phish > min(len(phish), len(other_legit)):
+            sys.exit(f"Not enough emails for train_{CROSS_SOURCE_SIZE}_no_{held_out}.")
+        name = f"train_{CROSS_SOURCE_SIZE}_no_{held_out}"
+        splits[name] = phish + other_legit[:n_phish]
+        rng.shuffle(splits[name])
+        # Keeps val's existing (already shuffled) order, minus the source.
+        splits[f"val_no_{held_out}"] = [e for e in splits["val"]
+                                        if e["source"] != held_out]
     return splits
 
 
@@ -422,6 +470,15 @@ def check_no_leakage(splits: dict) -> None:
         a = {e["id"] for e in splits[f"train_{small}"]}
         b = {e["id"] for e in splits[f"train_{big}"]}
         assert a <= b, f"train_{small} is not inside train_{big}!"
+    # Each cross-source set is drawn from the training pool only, and must
+    # really contain no email from its held-out source.
+    for held_out in CROSS_SOURCE_HELD_OUT:
+        train_name = f"train_{CROSS_SOURCE_SIZE}_no_{held_out}"
+        assert {e["id"] for e in splits[train_name]} <= ids["train_full"], \
+            f"{train_name} is not inside train_full!"
+        for name in (train_name, f"val_no_{held_out}"):
+            assert all(e["source"] != held_out for e in splits[name]), \
+                f"{name} contains {held_out} emails!"
 
 
 def save(splits: dict, load_stats: Counter, out_dir: Path, args) -> None:
@@ -460,14 +517,15 @@ def save(splits: dict, load_stats: Counter, out_dir: Path, args) -> None:
 
     # Print a compact table so you can sanity-check the result at a glance.
     print(f"\nWrote {len(splits)} splits to {out_dir}/")
-    print(f"{'split':<12}{'total':>7}{'phish':>7}{'legit':>7}"
-          f"{'nazario':>9}{'nigerian':>10}")
+    print(f"{'split':<26}{'total':>7}{'phish':>7}{'legit':>7}"
+          f"{'nazario':>9}{'nigerian':>10}{'spamassassin':>14}")
     for name, s in summary["splits"].items():
-        print(f"{name:<12}{s['total']:>7}"
+        print(f"{name:<26}{s['total']:>7}"
               f"{s['by_label'].get('phishing', 0):>7}"
               f"{s['by_label'].get('legitimate', 0):>7}"
               f"{s['by_source'].get('nazario', 0):>9}"
-              f"{s['by_source'].get('nigerian', 0):>10}")
+              f"{s['by_source'].get('nigerian', 0):>10}"
+              f"{s['by_source'].get('spamassassin', 0):>14}")
 
 
 # ===========================================================================
