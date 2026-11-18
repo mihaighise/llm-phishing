@@ -128,6 +128,37 @@ def free_gpu_memory() -> None:
     torch.cuda.empty_cache()  # hand their freed GPU memory back to the GPU
 
 
+def check_gpu_memory(max_used_gb: float | None = None,
+                     min_free_gb: float | None = None) -> None:
+    """Stop with a clear message if GPU memory is still taken by an earlier,
+    crashed run in this Colab session.
+
+    Why this exists: when a cell crashes (e.g. "CUDA out of memory"), Colab
+    keeps the error's details for display, and those keep the crashed
+    function's model alive on the GPU. free_gpu_memory() cannot release it.
+    The next model then does not fit, and loading fails with a confusing
+    error ("Some modules are dispatched on the CPU or the disk"). The only
+    fix is Runtime → Restart session.
+
+    max_used_gb — fail if MORE than this is already in use (use before
+                  training, which needs an almost empty GPU).
+    min_free_gb — fail if LESS than this is free (use before loading a
+                  model for evaluation, which needs ~6-8 GB).
+    """
+    free_gpu_memory()  # first release anything that CAN be released
+    free, total = (x / 1e9 for x in torch.cuda.mem_get_info())  # bytes -> GB
+    used = total - free
+    print(f"GPU memory: {used:.1f} GB in use, {free:.1f} GB free of {total:.1f} GB")
+    too_full = ((max_used_gb is not None and used > max_used_gb)
+                or (min_free_gb is not None and free < min_free_gb))
+    if too_full:
+        raise RuntimeError(
+            f"GPU memory is still in use ({used:.1f} GB) — most likely by an "
+            "earlier run in this session that crashed. Use Runtime → Restart "
+            "session, then Runtime → Run all. (Your Drive files are safe; "
+            "training resumes from the last checkpoint.)")
+
+
 def _render_prompt(tokenizer, email: dict, template_kwargs: dict) -> str:
     """Turn one email into the model's exact input text using ITS OWN chat
     template (each model family uses different special tokens).

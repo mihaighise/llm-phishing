@@ -68,6 +68,13 @@ MAX_LENGTH = 2048
 LORA_TARGET_MODULES = ["q_proj", "k_proj", "v_proj", "o_proj",
                        "gate_proj", "up_proj", "down_proj"]
 
+# Evaluate on the validation set and save a checkpoint every this many
+# training steps (one step = one weight update = 16 emails). On an L4, 50
+# steps take ~10 minutes, so a Colab disconnect loses at most ~10 minutes.
+# (Saving only at the end of each epoch could lose 30-45 minutes.) Each
+# evaluation of the 400 validation emails adds ~1 minute.
+SAVE_EVERY_STEPS = 50
+
 
 # ===========================================================================
 # 1. TURNING EMAILS INTO TRAINING EXAMPLES
@@ -138,13 +145,15 @@ def build_dataset(tokenizer, emails: list) -> list:
 def train_adapter(train_emails: list, val_emails: list, checkpoint_dir: Path,
                   adapter_dir: Path, epochs: int = 2, batch_size: int = 4,
                   effective_batch_size: int = 16, learning_rate: float = 2e-4,
-                  lora_rank: int = 16, seed: int = 42) -> None:
+                  lora_rank: int = 16, seed: int = 42,
+                  save_every_steps: int = SAVE_EVERY_STEPS) -> None:
     """QLoRA-train Llama 3.1 8B on `train_emails` and save the best adapter.
 
-    checkpoint_dir — where a checkpoint is saved after every epoch (on
-                     Google Drive, so a disconnect loses at most one epoch;
-                     re-running continues from the last checkpoint).
-    adapter_dir    — where the BEST epoch's adapter is saved at the end.
+    checkpoint_dir — where a checkpoint is saved every `save_every_steps`
+                     steps and at the end (on Google Drive, so a disconnect
+                     loses at most ~10 minutes; re-running continues from the
+                     last checkpoint).
+    adapter_dir    — where the BEST checkpoint's adapter is saved at the end.
     epochs         — passes over the training data.
     batch_size     — emails per GPU step (lower it if out of memory).
     effective_batch_size — emails per weight update. With batch_size 4 and
@@ -154,8 +163,10 @@ def train_adapter(train_emails: list, val_emails: list, checkpoint_dir: Path,
     learning_rate  — 2e-4 is the usual QLoRA value.
     lora_rank      — size of the adapter matrices (16 = common default).
 
-    "Best" = lowest loss on the validation answers (eval_loss), checked after
-    every epoch. The test set is never used here.
+    save_every_steps — how often to evaluate + save (see SAVE_EVERY_STEPS).
+
+    "Best" = lowest loss on the validation answers (eval_loss), checked at
+    every checkpoint. The test set is never used here.
     """
     # Imported here so that importing this module does not require peft.
     from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
@@ -211,10 +222,19 @@ def train_adapter(train_emails: list, val_emails: list, checkpoint_dir: Path,
         # still work and also work on older versions, so we keep them.)
         gradient_checkpointing=True,
         gradient_checkpointing_kwargs={"use_reentrant": False},
-        # Evaluate on the validation set and save a checkpoint after every
-        # epoch; at the end, reload the epoch with the lowest eval_loss.
-        eval_strategy="epoch",
-        save_strategy="epoch",
+        # Every `save_every_steps` steps (and at the very end): measure the
+        # loss on the validation set and save a checkpoint. At the end,
+        # reload the checkpoint with the lowest eval_loss.
+        # Saving and evaluating must follow the same schedule — the Trainer
+        # refuses load_best_model_at_end otherwise.
+        eval_strategy="steps",
+        eval_steps=save_every_steps,
+        save_strategy="steps",
+        save_steps=save_every_steps,
+        # Keep only 2 checkpoints on Drive: the best one so far and the most
+        # recent one (needed to resume). Older ones are deleted
+        # automatically, so a long run does not fill up Drive.
+        save_total_limit=2,
         load_best_model_at_end=True,
         metric_for_best_model="eval_loss",
         greater_is_better=False,
@@ -241,7 +261,7 @@ def train_adapter(train_emails: list, val_emails: list, checkpoint_dir: Path,
         print(f"Resuming from {last}")
     trainer.train(resume_from_checkpoint=last)
 
-    # trainer.model now holds the best epoch. save_pretrained on a peft
+    # trainer.model now holds the best checkpoint. save_pretrained on a peft
     # model writes ONLY the small adapter, not the 8B base model.
     trainer.model.save_pretrained(str(adapter_dir))
     tokenizer.save_pretrained(str(adapter_dir))

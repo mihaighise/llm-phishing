@@ -158,7 +158,7 @@ Tips:
 |---|---|---|
 | Model answers (raw text + parsed fields) | `MyDrive/llm-phishing/results/raw/<model>_<split>_<N>_<prompt version>.jsonl` | Yes (Google Drive) |
 | Fine-tuned LoRA adapters (Step 5, ~100–200 MB each) | `MyDrive/llm-phishing/finetune/<run>/adapter/` | Yes (Google Drive) |
-| Training checkpoints (one per epoch, for resuming) | `MyDrive/llm-phishing/finetune/<run>/checkpoints/` | Yes (Google Drive) — can be deleted once the adapter exists |
+| Training checkpoints (every 50 steps; only the best and latest are kept, for resuming) | `MyDrive/llm-phishing/finetune/<run>/checkpoints/` | Yes (Google Drive) — can be deleted once the adapter exists |
 | Downloaded model weights (~5–6 GB each) | Colab's temporary disk | No — re-downloaded in 1–3 min when needed |
 | Processed dataset | Colab's temporary disk | No — rebuilt from Zenodo in ~30 s |
 
@@ -181,16 +181,24 @@ Training logic is in `src/finetune.py`.
   whether explanations change classification.
 - **Settings:** 4-bit Llama (same precision as the baselines), LoRA rank 16
   on all attention and feed-forward layers, learning rate 2e-4 (cosine),
-  16 emails per update, 2 epochs. The epoch with the lowest **validation**
-  loss is kept; the test set is used only for the final evaluation.
+  16 emails per update, 2 epochs. Every 50 steps (~10 min on an L4) and at
+  the end, the validation loss is measured and a checkpoint saved; the
+  checkpoint with the lowest **validation** loss is kept. The test set is
+  used only for the final evaluation. (The first `train_3000` run, before
+  commit "Save fine-tuning checkpoints every 50 steps", checked and saved
+  only at the end of each epoch.)
   Training emails over 2,048 tokens are skipped (23 of 8,248, 0.3%).
 - **One training set per run:** set `TRAIN_SET` (`train_500`, `train_1500`,
   `train_3000`, `train_full`) and *Run all*. Each run has its own Drive
   folder `MyDrive/llm-phishing/finetune/llama31_8b_ft_<train set>/`.
 - **Rough L4 times** (2 epochs): `train_500` ~10–20 min, `train_1500`
   ~30–50 min, `train_3000` ~1–1.5 h, `train_full` ~3–5 h, plus ~5 min of
-  evaluation. A checkpoint is saved after every epoch, so after a disconnect
-  *Run all* continues where it stopped; a finished adapter is never retrained.
+  evaluation, plus ~1 min per 50-step validation check. Because of the
+  checkpoints, after a disconnect *Run all* continues where it stopped
+  (losing at most ~10 min); a finished adapter is never retrained.
+- **After a crash** (e.g. `CUDA out of memory`), use *Runtime → Restart
+  session* before *Run all*: the crashed run keeps its GPU memory until the
+  session restarts. The notebook checks this and stops with that advice.
 - **Results:** `results/raw/llama31_8b_ft_<train set>_{val,test}_all_v2.jsonl`
   in Drive. Download the test file to `results/raw/` and run
   `python3 src/metrics.py`; it appears as "Llama 3.1 8B fine-tuned
