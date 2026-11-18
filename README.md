@@ -444,36 +444,85 @@ reading them (stored in the script).
 python3 src/error_analysis.py
 ```
 
-**Zero-shot models: errors are almost all false alarms** (Llama 121,
-Mistral 101, Qwen 54 of 500 legitimate emails, plus Qwen's 24 unparseable
-answers). The models disagree a lot: 184 different legitimate emails are
-flagged by at least one model, but only 24 by all three. Main causes:
+### Errors per model (1,000 test emails, strict)
 
-| Cause | Evidence |
+| Model | Errors | False alarms | Missed phishing | Unparseable |
+|---|---|---|---|---|
+| Naive Bayes | 14 | 3 | 11 | 0 |
+| Llama 3.1 8B | 123 | 121 | 1 | 1 |
+| Mistral 7B | 107 | 101 | 4 | 2 |
+| Qwen 3.5 9B | 78 | 54 | 0 | 24 |
+| Llama fine-tuned (`train_500`) | 3 | 3 | 0 | 0 |
+| Llama fine-tuned (`train_1500`) | 3 | 2 | 1 | 0 |
+| Llama fine-tuned (`train_3000`) | 2 | 1 | 1 | 0 |
+
+The zero-shot models disagree a lot: 184 legitimate emails are flagged by at
+least one, only 24 by all three.
+
+### Every error of the fine-tuned models (5 emails)
+
+| Email | Wrong in run(s) | Zero-shot also wrong | What it is |
+|---|---|---|---|
+| `472e010a` | 500, 1500 | 3/3 | Subscribed marketing newsletter (dELiA*s) with tracking links |
+| `6cc80071` | 500 | 0/3 | Law-firm email: only "attached are the POA documents" + a disclaimer |
+| `74d7826c` | 1500 | 2/3 | MSN Groups post about investing, with promotional links |
+| `af3940b3` | 1500, 3000 | 1/3 | **Real** PayPal phishing hidden letter by letter in Arabic filler text |
+| `c6fe173f` | 500, 3000 | 3/3 | Real Enron IT notice: "login using your email … GIS_ID as password" |
+
+### The 24 legitimate emails all three zero-shot models flag
+
+| Cause | Emails | Fixed by fine-tuning (`train_3000`) |
+|---|---|---|
+| Sender looks odd (free-mail or list relay address, name ≠ address) | 10 | 10/10 |
+| Invented evidence ("ENRON.com instead of enron.com", "a famous hacker") | 4 | 4/4 |
+| Marketing newsletter with tracking links | 4 | 4/4 |
+| Content genuinely resembles phishing (login details, legal threat) | 4 | 3/4 |
+| Informal writing (deliberate misspellings, a bare link) | 2 | 2/2 |
+
+### False alarms by sender (legitimate emails)
+
+| Sender | Llama | Mistral | Qwen |
+|---|---|---|---|
+| **Enron** | **34/35** | 14/35 | 7/35 |
+| slack.net (a 1990s internet provider) | 5/6 | 5/6 | 4/6 |
+| Free-mail (hotmail, aol, …) | 12/29 | 11/29 | 9/29 |
+| All other senders | 70/430 | 71/430 | 34/430 |
+
+In 12 of the 35 Enron emails, Llama's reasoning mentions Enron's bankruptcy
+or scandal — e.g. *"pretends to be from Enron, a company that went bankrupt
+in 2001"*.
+
+### Indicators cited in false alarms
+
+| Model | Most cited (share of its false alarms) |
 |---|---|
-| **Judging the sender, not the message** | Free-mail senders (hotmail, aol, …) are flagged 31–41% of the time vs 10–23% for all other senders. 10 of the 24 emails all three models flag are mailing-list posts whose sender name does not match the address (`tomwhore@slack.net`, `fork_list@hotmail.com`). "Impersonation" is cited in 46–85% of false alarms. |
-| **Reading old emails as if sent today** | Llama flags **34 of 35** Enron emails (Mistral 14, Qwen 7) — 28% of all its false alarms — reasoning e.g. *"pretends to be from Enron, a company that went bankrupt in 2001"*. Qwen reads the 1990s ISP `slack.net` as impersonating the Slack app. Masking years cannot hide this. |
-| **Invented evidence** | *"the sender uses ENRON.com instead of the correct enron.com"* (domains are not case-sensitive), *"Gordon Mohr, a famous hacker"*, a real domain called a misspelling. Explanations can sound confident and still be false — relevant for Step 7. |
-| **Legitimate but spam-like mail** | Subscribed newsletters (GameSpot, astrology.com, dELiA*s, MoveOn) with tracking links. Arguably borderline labels. |
-| **Content that genuinely looks like phishing** | Real Enron IT notices with login details (*"login using your email … and GIS_ID as password"*), "click the attached icon", a lawyer's legal threat. |
+| Llama | suspicious_link 61%, poor_grammar 60%, impersonation 46% |
+| Mistral | impersonation 77%, suspicious_link 69%, poor_grammar 39% |
+| Qwen | impersonation 85%, suspicious_link 85%, poor_grammar 63% |
 
-**Fine-tuned Llama: 5 different errors across three runs**, and they are
-the hard cases above — 2 of its 4 false alarms are among the 24 emails every
-zero-shot model flags.
-Fine-tuning fixes 23 of the 24 shared false alarms (`train_3000`). The one
-it keeps getting wrong in some runs is the Enron login notice (`c6fe173f`),
-which a careful human would also double-check. Its one missed phishing
-email (`af3940b3`) is real PayPal phishing hidden letter by letter in
-random Arabic text — not a labelling error.
+### Missed phishing
 
-**Missed phishing.** The zero-shot models miss only 1–5 phishing emails,
-mostly "your statement / payment advice is attached" (the attack is in the
-missing attachment) and plausible IT help-desk notices. Naive Bayes misses
-11, of a different kind: **text deliberately broken to defeat word-based
-filters** (junk tokens inside every word, letters hidden in Arabic filler,
-random characters), non-English emails, and almost-empty bodies. The LLMs
-catch nearly all of these — the clearest case where reading beats word
-counting.
+- **Zero-shot models (1–5 each):** mostly "your eStatement / payment advice
+  is attached" — the attack was in the attachment, which the dataset does
+  not include — plus plausible IT help-desk emails.
+- **Naive Bayes (11):** mostly text deliberately scrambled to beat word
+  filters ("##number##" inside every word, letters hidden in Arabic filler,
+  random characters), plus Chinese/Portuguese emails and almost-empty
+  bodies. The LLMs catch nearly all of these.
+
+### Takeaways
+
+- **The zero-shot models judge the sender more than the message.**
+  "Impersonation" is cited in 46–85% of their false alarms.
+- **Masking dates does not hide the era:** the models read 20-year-old
+  emails as if they arrived today (Enron "went bankrupt", slack.net
+  "impersonates Slack").
+- **Explanations can be confident and false** (invented evidence) —
+  relevant for any later explanation evaluation.
+- **Fine-tuning removes almost all of these errors**; what remains are
+  genuinely hard or borderline emails, not labelling mistakes.
+- **Reading beats word counting on obfuscated phishing**, the main kind
+  Naive Bayes misses.
 
 ## Repository layout
 
