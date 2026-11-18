@@ -235,6 +235,37 @@ Observations:
 - Raw answer files are not in git (`results/raw/` is ignored); they live in
   Google Drive.
 
+## Fine-tuned results (label-only QLoRA, `train_3000`)
+
+Llama 3.1 8B fine-tuned on 3,000 emails (2 epochs, best epoch chosen on the
+validation set), run on an L4 on 2026-11-17, scored on the same 1,000 test
+emails. Strict scoring; full tables in [`results/metrics.md`](results/metrics.md).
+
+| Model | Accuracy (95% CI) | F1 | False alarms | Missed phishing |
+|---|---|---|---|---|
+| **Llama 3.1 8B fine-tuned (`train_3000`)** | **99.8%** (99.5–100%) | **0.998** | **1** | **1** |
+| Naive Bayes (bag-of-words baseline) | 98.6% (97.8–99.3%) | 0.986 | 3 | 11 |
+| Qwen 3.5 9B, zero-shot | 92.2% (90.4–93.9%) | 0.947 | 54 | 2 |
+| Mistral 7B, zero-shot | 89.3% (87.2–91.2%) | 0.903 | 101 | 5 |
+| Llama 3.1 8B, zero-shot | 87.7% (85.7–89.6%) | 0.891 | 121 | 1 |
+
+Observations:
+- **False alarms fell from 121 to 1**, the zero-shot models' main weakness;
+  all 254 SpamAssassin emails are now correct.
+- **It beats Naive Bayes** with non-overlapping confidence intervals, mainly
+  by catching 10 of the 11 Nazario phishing emails Naive Bayes misses.
+- **Same 99.8% on the 891 near-duplicate-free test emails**, so it is not
+  remembering templated scams. All 1,000 answers parsed; validation accuracy
+  99.5%.
+- **The two errors are understandable:** a legitimate Enron notice ("login
+  using your email … and GIS_ID as password") that reads like credential
+  phishing, and a phishing email padded with random Arabic words to fool
+  filters.
+- **Caveat:** test emails come from the same sources as the training
+  emails, so part of the gain may still be learning each source's style. A
+  cross-source test (train without SpamAssassin, test on it) would show
+  whether it generalises. This model outputs only a label — no explanation.
+
 ## Shortcut check (bag-of-words baseline)
 
 `src/shortcut_check.py` trains a multinomial Naive Bayes classifier (word
@@ -273,7 +304,9 @@ What it means for the project:
   exactly the mailing-list mail Naive Bayes finds easy.
 - A **fine-tuned** model will likely learn the shortcut too. Naive Bayes is
   therefore reported as a baseline row in every results table: a fine-tuned
-  model's accuracy is only impressive relative to 98.6%.
+  model's accuracy is only impressive relative to 98.6%. (Outcome: the
+  `train_3000` model reached 99.8% — see
+  [Fine-tuned results](#fine-tuned-results-label-only-qlora-train_3000).)
 - **Explanation quality** (Step 7) is where LLMs can show what word counting
   cannot, so it carries more weight in the write-up.
 
@@ -325,9 +358,11 @@ results/
 
 ### Step 5 — Fine-tune Llama 3.1 8B (Colab)
 - [x] QLoRA training notebook (`notebooks/02_finetune.ipynb`, logic in `src/finetune.py`) — label-only; tested locally with the real Llama tokenizer and a tiny model
-- [ ] Train on `train_3000`; pick the best checkpoint on the val set
-- [ ] Learning curve: also train on `train_500`, `train_1500`, `train_full`
-- [ ] Run the fine-tuned model(s) on the same 1,000 test emails
+- [x] Train on `train_3000`; pick the best checkpoint on the val set (val accuracy 99.5%)
+- [x] Run the fine-tuned model on the same 1,000 test emails (99.8% accuracy, F1 0.998 — see [Fine-tuned results](#fine-tuned-results-label-only-qlora-train_3000))
+- [ ] Learning curve: also train on `train_500`, `train_1500` (`train_full` optional; note its different Nazario/Nigerian mix)
+- [ ] Optional: cross-source test — train without SpamAssassin, test on it
+- [ ] Later: second fine-tune on label + explanations (needs Step 4)
 
 ### Step 6 — Classification metrics
 - [x] Accuracy, precision, recall, F1 per model, strict and lenient, with 95% bootstrap CIs — `src/metrics.py`
