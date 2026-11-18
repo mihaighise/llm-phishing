@@ -46,7 +46,12 @@
 <circle class="dot nb" cx="261.7" cy="106.3" r="5"><title>Naive Bayes, 1,500 training emails: F1 0.985 (95% CI 0.978–0.992)</title></circle>
 <circle class="dot nb" cx="365.4" cy="100.2" r="5"><title>Naive Bayes, 3,000 training emails: F1 0.988 (95% CI 0.981–0.995)</title></circle>
 <circle class="dot nb" cx="516.6" cy="104.6" r="5"><title>Naive Bayes, 8,248 training emails: F1 0.986 (95% CI 0.978–0.993)</title></circle>
+<line class="whisker ft" x1="97.4" x2="97.4" y1="89.8" y2="76.0"/>
+<line class="whisker ft" x1="261.7" x2="261.7" y1="90.2" y2="76.0"/>
 <line class="whisker ft" x1="365.4" x2="365.4" y1="86.4" y2="76.0"/>
+<polyline class="line ft" points="97.4,82.1 261.7,82.1 365.4,80.1"/>
+<circle class="dot ft" cx="97.4" cy="82.1" r="5"><title>Llama 3.1 8B fine-tuned, 500 training emails: F1 0.997 (95% CI 0.993–1.000)</title></circle>
+<circle class="dot ft" cx="261.7" cy="82.1" r="5"><title>Llama 3.1 8B fine-tuned, 1,500 training emails: F1 0.997 (95% CI 0.993–1.000)</title></circle>
 <circle class="dot ft" cx="365.4" cy="80.1" r="5"><title>Llama 3.1 8B fine-tuned, 3,000 training emails: F1 0.998 (95% CI 0.995–1.000)</title></circle>
 <text class="end primary" x="558" y="84.1">Llama 3.1 8B fine-tuned 0.998</text>
 <text class="end primary" x="558" y="108.6">Naive Bayes 0.986</text>

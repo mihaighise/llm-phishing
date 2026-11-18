@@ -243,19 +243,35 @@ Observations:
 - Raw answer files are not in git (`results/raw/` is ignored); they live in
   Google Drive.
 
-## Fine-tuned results (label-only QLoRA, `train_3000`)
+## Fine-tuned results (label-only QLoRA, `train_500`, `train_1500`, `train_3000`)
 
-Llama 3.1 8B fine-tuned on 3,000 emails (2 epochs, best epoch chosen on the
-validation set), run on an L4 on 2026-11-17, scored on the same 1,000 test
-emails. Strict scoring; full tables in [`results/metrics.md`](results/metrics.md).
+Llama 3.1 8B fine-tuned on 500, 1,500 and 3,000 emails (2 epochs, best
+epoch chosen on the validation set), run on an L4 on 2026-11-17/18, scored
+on the same 1,000 test emails next to the zero-shot base models and Naive
+Bayes. Strict scoring (unparseable answers count as wrong); CI = 95%
+bootstrap interval. Full tables in [`results/metrics.md`](results/metrics.md).
 
-| Model | Accuracy (95% CI) | F1 | False alarms | Missed phishing |
-|---|---|---|---|---|
-| **Llama 3.1 8B fine-tuned (`train_3000`)** | **99.8%** (99.5–100%) | **0.998** | **1** | **1** |
-| Naive Bayes (bag-of-words baseline) | 98.6% (97.8–99.3%) | 0.986 | 3 | 11 |
-| Qwen 3.5 9B, zero-shot | 92.2% (90.4–93.9%) | 0.947 | 54 | 2 |
-| Mistral 7B, zero-shot | 89.3% (87.2–91.2%) | 0.903 | 101 | 5 |
-| Llama 3.1 8B, zero-shot | 87.7% (85.7–89.6%) | 0.891 | 121 | 1 |
+| Model | Parsed | Accuracy (95% CI) | Precision | Recall | F1 (95% CI) | False alarms | Missed phishing |
+|---|---|---|---|---|---|---|---|
+| **Llama 3.1 8B fine-tuned (`train_3000`)** | 100.0% | **99.8%** (99.5–100%) | **0.998** | 0.998 | **0.998** (0.995–1.000) | **1** | 1 |
+| Llama 3.1 8B fine-tuned (`train_1500`) | 100.0% | 99.7% (99.3–100%) | 0.996 | 0.998 | 0.997 (0.993–1.000) | 2 | 1 |
+| Llama 3.1 8B fine-tuned (`train_500`) | 100.0% | 99.7% (99.3–100%) | 0.994 | **1.000** | 0.997 (0.993–1.000) | 3 | **0** |
+| Naive Bayes (bag-of-words baseline) | 100.0% | 98.6% (97.8–99.3%) | 0.994 | 0.978 | 0.986 (0.978–0.993) | 3 | 11 |
+| Qwen 3.5 9B, zero-shot | 97.6% | 92.2% (90.4–93.9%) | 0.902 | 0.996 | 0.947 (0.932–0.960) | 54 | 2 |
+| Mistral 7B, zero-shot | 99.8% | 89.3% (87.2–91.2%) | 0.831 | 0.990 | 0.903 (0.883–0.921) | 101 | 5 |
+| Llama 3.1 8B, zero-shot | 99.9% | 87.7% (85.7–89.6%) | 0.805 | 0.998 | 0.891 (0.872–0.909) | 121 | 1 |
+
+Same models on the **891 test emails without a near-duplicate in training**:
+
+| Model | Accuracy (95% CI) | Precision | Recall | F1 (95% CI) | False alarms | Missed phishing |
+|---|---|---|---|---|---|---|
+| **Llama 3.1 8B fine-tuned (`train_3000`)** | **99.8%** (99.4–100%) | **0.998** | 0.998 | **0.998** (0.994–1.000) | **1** | 1 |
+| Llama 3.1 8B fine-tuned (`train_1500`) | 99.7% (99.2–100%) | 0.995 | 0.998 | 0.996 (0.991–1.000) | 2 | 1 |
+| Llama 3.1 8B fine-tuned (`train_500`) | **99.8%** (99.4–100%) | 0.995 | **1.000** | **0.998** (0.994–1.000) | 2 | **0** |
+| Naive Bayes (bag-of-words baseline) | 98.5% (97.8–99.2%) | 0.995 | 0.973 | 0.984 (0.975–0.992) | 2 | 11 |
+| Qwen 3.5 9B, zero-shot | 91.4% (89.3–93.2%) | 0.885 | 0.995 | 0.937 (0.919–0.953) | 53 | 2 |
+| Mistral 7B, zero-shot | 88.3% (86.1–90.2%) | 0.804 | 0.990 | 0.887 (0.863–0.907) | 99 | 4 |
+| Llama 3.1 8B, zero-shot | 86.8% (84.6–88.9%) | 0.779 | 0.998 | 0.875 (0.852–0.896) | 116 | 1 |
 
 Observations:
 - **False alarms fell from 121 to 1**, the zero-shot models' main weakness;
@@ -273,6 +289,43 @@ Observations:
   emails, so part of the gain may still be learning each source's style. A
   cross-source test (train without SpamAssassin, test on it) would show
   whether it generalises. This model outputs only a label — no explanation.
+  (These bullets describe `train_3000`; smaller sets are compared below.)
+
+### Effect of training-set size
+
+Each fine-tuned model next to Naive Bayes trained on the **same** emails
+(nested sets: 500 ⊂ 1,500 ⊂ 3,000). All 1,000 test emails, strict.
+
+| Training emails | Llama FT F1 (95% CI) | Llama FT errors (false alarms + missed) | Validation correct | Naive Bayes F1 (same emails) |
+|---|---|---|---|---|
+| 0 (zero-shot) | 0.891 (0.872–0.909) | 122 (121 + 1) | — | — |
+| 500 | 0.997 (0.993–1.000) | 3 (3 + 0) | 396/400 | 0.978 |
+| 1,500 | 0.997 (0.993–1.000) | 3 (2 + 1) | 397/400 | 0.985 |
+| 3,000 | 0.998 (0.995–1.000) | 2 (1 + 1) | 398/400 | 0.988 |
+
+Correct answers per source (test, strict):
+
+| Source | FT `train_500` | FT `train_1500` | FT `train_3000` |
+|---|---|---|---|
+| Nazario phishing (300) | 300 | 299 | 299 |
+| Nigerian fraud (200) | 200 | 200 | 200 |
+| SpamAssassin legitimate (254) | 253 | 252 | 254 |
+| Nazario_5 legitimate (132) | 131 | 132 | 131 |
+| Nigerian_5 legitimate (114) | 113 | 114 | 114 |
+
+- **500 emails are already enough.** The three runs differ by at most one
+  error, well inside each other's confidence intervals; more data only
+  swaps a false alarm for a missed phishing email or vice versa.
+- **Almost all of the gain comes from the first 500 emails:** errors drop
+  from 122 (zero-shot) to 3. Fine-tuning mainly teaches the model what
+  *legitimate* mail in this dataset looks like.
+- **A few hard emails recur:** the Enron notice `c6fe173f` is flagged by
+  `train_500` and `train_3000`, and Nazario phishing `af3940b3` is missed
+  by `train_1500` and `train_3000`. With 2–3 errors per run the differences
+  between sizes are noise; repeating each run with other seeds would be
+  needed to rank them.
+- **Every fine-tuned run beats Naive Bayes trained on the same emails**,
+  mainly because Naive Bayes misses 11 Nazario phishing emails.
 
 ### Learning curve
 
@@ -282,7 +335,7 @@ Test F1 (strict) of the fine-tuned Llama and of Naive Bayes trained on the
 same nested sets (500 ⊂ 1,500 ⊂ 3,000 ⊂ full); dashed lines are the
 zero-shot models. Generated by `python3 src/metrics.py`, which adds a
 fine-tuned point as soon as `results/raw/llama31_8b_ft_<train set>_test_all_v2.jsonl`
-exists — so far only `train_3000` has been run. Naive Bayes is nearly flat
+exists — so far `train_500`, `train_1500` and `train_3000` have been run. Naive Bayes is nearly flat
 (0.978 → 0.986): the source/topic words it relies on are learnt from 500
 emails already.
 

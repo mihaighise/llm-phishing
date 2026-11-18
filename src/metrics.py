@@ -112,7 +112,15 @@ def load_answers(test_ids: set) -> dict:
     """
     suffix = f"_test_all_{PROMPT_VERSION}.jsonl"
     answers = {}
-    for path in sorted(RAW_DIR.glob(f"*{suffix}")):
+    # Sort by name, but put fine-tuned runs in training-set order (500, 1500,
+    # 3000, full) — plain text sorting would put "train_1500" before
+    # "train_500". Files with no training set sort as position -1 (first).
+    def order(path):
+        train_set = path.name[: -len(suffix)].partition("_ft_")[2]
+        position = TRAIN_SETS.index(train_set) if train_set in TRAIN_SETS else -1
+        return (path.name.split("_ft_")[0], position, path.name)
+
+    for path in sorted(RAW_DIR.glob(f"*{suffix}"), key=order):
         model_key = path.name[: -len(suffix)]  # "llama31_8b_test_all_v2.jsonl" -> "llama31_8b"
         with open(path, encoding="utf-8") as f:
             rows = [json.loads(line) for line in f if line.strip()]
