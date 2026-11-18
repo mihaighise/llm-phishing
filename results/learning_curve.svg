@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="440" viewBox="0 0 760 440" role="img" aria-label="Learning curve: test F1 against number of training emails">
+<style>
+  svg { --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#8a8984;
+        --grid:#e6e5e1; --ft:#2a78d6; --nb:#eb6834; }
+  @media (prefers-color-scheme: dark) {
+    svg { --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#8f8e87;
+          --grid:#33332f; --ft:#3987e5; --nb:#d95926; }
+  }
+  .bg { fill: var(--surface); }
+  text { font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; }
+  .title { font-size: 15px; font-weight: 600; fill: var(--ink); }
+  .label, .end.primary { font-size: 12px; fill: var(--ink); }
+  .tick { font-size: 11px; fill: var(--ink2); }
+  .end.muted { font-size: 12px; fill: var(--ink2); }
+  .grid { stroke: var(--grid); stroke-width: 1; }
+  .axis { stroke: var(--ink2); stroke-width: 1; }
+  .ref { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 5 4; }
+  .line { fill: none; stroke-width: 2; }
+  .whisker { stroke-width: 1.5; }
+  .dot { stroke: var(--surface); stroke-width: 2; }
+  .ft { stroke: var(--ft); } circle.ft { fill: var(--ft); }
+  .nb { stroke: var(--nb); } circle.nb { fill: var(--nb); }
+  circle.dot { stroke: var(--surface); }
+</style>
+<rect class="bg" width="760" height="440"/>
+<line class="grid" x1="64" x2="550" y1="380.0" y2="380.0"/>
+<text class="tick" x="56" y="384.0" text-anchor="end">0.85</text>
+<line class="grid" x1="64" x2="550" y1="278.7" y2="278.7"/>
+<text class="tick" x="56" y="282.7" text-anchor="end">0.90</text>
+<line class="grid" x1="64" x2="550" y1="177.3" y2="177.3"/>
+<text class="tick" x="56" y="181.3" text-anchor="end">0.95</text>
+<line class="grid" x1="64" x2="550" y1="76.0" y2="76.0"/>
+<text class="tick" x="56" y="80.0" text-anchor="end">1.00</text>
+<text class="tick" x="97.4" y="400" text-anchor="middle">500</text>
+<text class="tick" x="261.7" y="400" text-anchor="middle">1,500</text>
+<text class="tick" x="365.4" y="400" text-anchor="middle">3,000</text>
+<text class="tick" x="516.6" y="400" text-anchor="middle">8,248</text>
+<line class="axis" x1="64" x2="550" y1="380" y2="380"/>
+<text class="label" x="307.0" y="426" text-anchor="middle">Training emails (log scale)</text>
+<text class="label" transform="translate(16 228.0) rotate(-90)" text-anchor="middle">Test F1 (strict)</text>
+<line class="ref" x1="64" x2="550" y1="296.8" y2="296.8"><title>Llama 3.1 8B zero-shot: F1 0.891</title></line>
+<line class="ref" x1="64" x2="550" y1="272.0" y2="272.0"><title>Mistral 7B zero-shot: F1 0.903</title></line>
+<line class="ref" x1="64" x2="550" y1="183.9" y2="183.9"><title>Qwen 3.5 9B zero-shot: F1 0.947</title></line>
+<polyline class="line nb" points="97.4,120.3 261.7,106.3 365.4,100.2 516.6,104.6"/>
+<circle class="dot nb" cx="97.4" cy="120.3" r="5"><title>Naive Bayes, 500 training emails: F1 0.978 (95% CI 0.969–0.987)</title></circle>
+<circle class="dot nb" cx="261.7" cy="106.3" r="5"><title>Naive Bayes, 1,500 training emails: F1 0.985 (95% CI 0.978–0.992)</title></circle>
+<circle class="dot nb" cx="365.4" cy="100.2" r="5"><title>Naive Bayes, 3,000 training emails: F1 0.988 (95% CI 0.981–0.995)</title></circle>
+<circle class="dot nb" cx="516.6" cy="104.6" r="5"><title>Naive Bayes, 8,248 training emails: F1 0.986 (95% CI 0.978–0.993)</title></circle>
+<line class="whisker ft" x1="365.4" x2="365.4" y1="86.4" y2="76.0"/>
+<circle class="dot ft" cx="365.4" cy="80.1" r="5"><title>Llama 3.1 8B fine-tuned, 3,000 training emails: F1 0.998 (95% CI 0.995–1.000)</title></circle>
+<text class="end primary" x="558" y="84.1">Llama 3.1 8B fine-tuned 0.998</text>
+<text class="end primary" x="558" y="108.6">Naive Bayes 0.986</text>
+<text class="end muted" x="558" y="187.9">Qwen 3.5 9B zero-shot 0.947</text>
+<text class="end muted" x="558" y="276.0">Mistral 7B zero-shot 0.903</text>
+<text class="end muted" x="558" y="300.8">Llama 3.1 8B zero-shot 0.891</text>
+<circle class="dot ft" cx="73" cy="46" r="5"/>
+<text class="label" x="88" y="50">Llama 3.1 8B fine-tuned (with 95% CI)</text>
+<circle class="dot nb" cx="339" cy="46" r="5"/>
+<text class="label" x="354" y="50">Naive Bayes, same training emails</text>
+<line class="ref" x1="572" x2="590" y1="46" y2="46"/>
+<text class="label" x="596" y="50">Zero-shot LLM (no training)</text>
+<text class="title" x="64" y="22">Learning curve: test F1 vs. number of training emails</text>
+</svg>

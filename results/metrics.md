@@ -80,3 +80,16 @@ Excludes 109 test emails whose body is ≥80% similar to a training email (Jacca
 |---|---|---|---|
 | phishing | 498 | 0 | 2 |
 | legitimate | 54 | 424 | 22 |
+
+## Learning curve — all test emails, strict
+
+F1 by number of training emails. Plot: `results/learning_curve.svg`.
+
+| Training set | Emails | Naive Bayes F1 | Llama 3.1 8B fine-tuned F1 (95% CI) |
+|---|---|---|---|
+| train_500 | 500 | 0.978 | not run yet |
+| train_1500 | 1,500 | 0.985 | not run yet |
+| train_3000 | 3,000 | 0.988 | 0.998 (0.995–1.000) |
+| train_full | 8,248 | 0.986 | not run yet |
+
+Zero-shot reference (no training emails): Llama 3.1 8B 0.891, Mistral 7B 0.903, Qwen 3.5 9B 0.947.
