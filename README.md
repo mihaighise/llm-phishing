@@ -82,6 +82,12 @@ Each line of a `.jsonl` file is one email:
 - **Lost URLs:** most Nazario emails had their link text removed during the
   original HTML-to-text conversion; only a `has_urls` flag remains.
 - **Limited modern phishing:** ~1,500 unique Nazario emails.
+- **Attachments are missing:** some Nazario phishing is just "your statement
+  is attached"; the attack was in the attachment, which the dataset does
+  not contain. These are the phishing emails the zero-shot models miss.
+- **Masking dates does not hide the era:** the models know the world as of
+  today, so Llama flags 34 of 35 Enron emails partly because "Enron went
+  bankrupt in 2001". See [Error analysis](#error-analysis).
 - **Topic/source shortcut:** a bag-of-words classifier reaches 98.6% on the
   test set, because each source has its own vocabulary (Linux mailing-list
   jargon = legitimate, 419-scam wording = phishing). See
@@ -427,6 +433,48 @@ What it means for the project:
 - **Explanation quality** (Step 7) is where LLMs can show what word counting
   cannot, so it carries more weight in the write-up.
 
+## Error analysis
+
+`src/error_analysis.py` lists every error, compares error patterns across
+models and writes [`results/error_analysis.md`](results/error_analysis.md).
+The categories and notes on individual emails are our own judgement after
+reading them (stored in the script).
+
+```
+python3 src/error_analysis.py
+```
+
+**Zero-shot models: errors are almost all false alarms** (Llama 121,
+Mistral 101, Qwen 54 of 500 legitimate emails, plus Qwen's 24 unparseable
+answers). The models disagree a lot: 184 different legitimate emails are
+flagged by at least one model, but only 24 by all three. Main causes:
+
+| Cause | Evidence |
+|---|---|
+| **Judging the sender, not the message** | Free-mail senders (hotmail, aol, …) are flagged 31–41% of the time vs 10–23% for all other senders. 10 of the 24 emails all three models flag are mailing-list posts whose sender name does not match the address (`tomwhore@slack.net`, `fork_list@hotmail.com`). "Impersonation" is cited in 46–85% of false alarms. |
+| **Reading old emails as if sent today** | Llama flags **34 of 35** Enron emails (Mistral 14, Qwen 7) — 28% of all its false alarms — reasoning e.g. *"pretends to be from Enron, a company that went bankrupt in 2001"*. Qwen reads the 1990s ISP `slack.net` as impersonating the Slack app. Masking years cannot hide this. |
+| **Invented evidence** | *"the sender uses ENRON.com instead of the correct enron.com"* (domains are not case-sensitive), *"Gordon Mohr, a famous hacker"*, a real domain called a misspelling. Explanations can sound confident and still be false — relevant for Step 7. |
+| **Legitimate but spam-like mail** | Subscribed newsletters (GameSpot, astrology.com, dELiA*s, MoveOn) with tracking links. Arguably borderline labels. |
+| **Content that genuinely looks like phishing** | Real Enron IT notices with login details (*"login using your email … and GIS_ID as password"*), "click the attached icon", a lawyer's legal threat. |
+
+**Fine-tuned Llama: 5 different errors across three runs**, and they are
+the hard cases above — 2 of its 4 false alarms are among the 24 emails every
+zero-shot model flags.
+Fine-tuning fixes 23 of the 24 shared false alarms (`train_3000`). The one
+it keeps getting wrong in some runs is the Enron login notice (`c6fe173f`),
+which a careful human would also double-check. Its one missed phishing
+email (`af3940b3`) is real PayPal phishing hidden letter by letter in
+random Arabic text — not a labelling error.
+
+**Missed phishing.** The zero-shot models miss only 1–5 phishing emails,
+mostly "your statement / payment advice is attached" (the attack is in the
+missing attachment) and plausible IT help-desk notices. Naive Bayes misses
+11, of a different kind: **text deliberately broken to defeat word-based
+filters** (junk tokens inside every word, letters hidden in Arabic filler,
+random characters), non-English emails, and almost-empty bodies. The LLMs
+catch nearly all of these — the clearest case where reading beats word
+counting.
+
 ## Repository layout
 
 ```
@@ -437,6 +485,7 @@ src/
   finetune.py        # Step 5: label-only QLoRA training of Llama (Colab GPU)
   shortcut_check.py  # Step 1: bag-of-words (Naive Bayes) baseline (runs locally)
   metrics.py         # Step 6: classification metrics for every results file (runs locally)
+  error_analysis.py  # Step 8: error patterns + notes on individual emails (runs locally)
 notebooks/
   01_baselines.ipynb # Step 3: run Llama / Qwen / Mistral baselines
   02_finetune.ipynb  # Step 5: QLoRA fine-tune Llama, evaluate on val + test
@@ -446,6 +495,7 @@ results/
   metrics.md         # Step 6 tables (generated — don't edit by hand)
   metrics.json       # every metric + near-duplicate test ids + learning curve
   learning_curve.svg # Step 6 learning-curve plot (generated)
+  error_analysis.md  # Step 8 error analysis (generated)
   raw/               # gitignored: model answers (copies from Google Drive)
 ```
 
@@ -498,7 +548,7 @@ results/
 
 ### Step 8 — Write-up test
 - [ ] Results tables and figures
-- [ ] Error analysis with example emails
+- [x] Error analysis with example emails — `src/error_analysis.py`, [Error analysis](#error-analysis) (add the cross-source model's misses once it has run)
 - [ ] Limitations (era gap, lost URLs, limited modern phishing)
 
 Data preparation runs locally as scripts in `src/`; GPU work runs in Colab
