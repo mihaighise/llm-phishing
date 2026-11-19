@@ -14,7 +14,8 @@ fine-tuning help? We compare:
 
 All models get the same prompt and the same 1,000 test emails (500 phishing,
 500 legitimate). They are scored with accuracy, precision, recall and F1
-(95% bootstrap confidence intervals). Full tables are in
+(95% bootstrap confidence intervals). The full write-up is
+[`report.pdf`](report.pdf); detailed tables are in
 [`results/metrics.md`](results/metrics.md), and the error analysis is in
 [`results/error_analysis.md`](results/error_analysis.md).
 
@@ -169,5 +170,5 @@ data/                # gitignored: raw and processed data
 - [x] Learning-curve plot
 - [x] Error analysis of every fine-tuned error, shared false alarms, sender effects and missed phishing
 
-### Step 6: Write-up
-- [ ] Report: results tables and figures, findings, limitations
+### Step 6: Write-up ✅
+- [x] Report: results tables and figures, findings, limitations ([`report.pdf`](report.pdf))
