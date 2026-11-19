@@ -22,6 +22,10 @@ writes results/error_analysis.md with:
                        raise a false alarm.
     6. Missed phishing — the phishing emails the zero-shot models and Naive
                        Bayes miss, with hand-written notes.
+    7. Cross-source  — the Nazario phishing missed by the Llama fine-tuned
+                       WITHOUT Nazario, sorted into kinds (MISSED_KINDS),
+                       and whether the other Llamas get them right. Only
+                       written once that run's answer file exists.
 
 HAND-WRITTEN PARTS
 ------------------
@@ -53,6 +57,27 @@ OUT_MD = REPO_DIR / "results" / "error_analysis.md"
 ZERO_SHOT = ["llama31_8b", "mistral_7b", "qwen35_9b"]
 FINE_TUNED = ["llama31_8b_ft_train_500", "llama31_8b_ft_train_1500",
               "llama31_8b_ft_train_3000"]
+# Cross-source run: trained without any Nazario email (section 7). Kept out of
+# FINE_TUNED because it answers a different question.
+CROSS_SOURCE = "llama31_8b_ft_train_1500_no_nazario"
+
+# Kinds of Nazario phishing the cross-source model misses. Checked in this
+# order against subject + sender + start of the body; the first match wins.
+# The patterns were written after reading all of its misses.
+MISSED_KINDS = {
+    "Text hidden in Arabic filler (also missed by train_1500)":
+        r"[\u0600-\u06FF]{4,}",
+    "Bank statement \"attached\" (Absa, Nedbank, Standard Bank)":
+        r"statement",
+    "Mailbox / password / IT help-desk notice":
+        r"password|mailbox|quota|usage limit|help ?desk|it-support|voice ?mail|"
+        r"blocked|quarantine|pending emails|recovery|e-mail notice|"
+        r"monkey\.org.*(confirm|확인|경고)|경고|請確認",
+    "File-sharing or \"secure message\" link (WeTransfer, encrypted mail)":
+        r"wetransfer|encrypt|secure messages?|smarsh|proofpoint",
+    "Brand account alert (USAA, PayPal, Apple, Amazon, other banks, UPS)":
+        r"usaa|paypal|apple|amazon|wells fargo|schwab|royal bank|ups",
+}
 
 # ===========================================================================
 # HAND-WRITTEN NOTES (see "HAND-WRITTEN PARTS" above)
@@ -299,6 +324,45 @@ def main() -> None:
     out += ["## 6. Missed phishing (zero-shot models and Naive Bayes)",
             table(["Model", "Email", "Source", "Answer parsed", "Subject",
                    "What it is"], rows)]
+
+    # --- 7. Cross-source model (trained without Nazario) -------------------
+    # Only if that run's answers exist (results/raw/...no_nazario...).
+    if (RAW_DIR / f"{CROSS_SOURCE}_test_all_{PROMPT_VERSION}.jsonl").exists():
+        cs = load_answers(CROSS_SOURCE)
+        cs_wrong = {i for i, a in cs.items() if is_wrong(a, by_id[i])}
+        missed = sorted(i for i in cs_wrong if by_id[i]["source"] == "nazario")
+        others = sorted(cs_wrong - set(missed))
+        # Sort every missed Nazario email into the first kind that matches.
+        kinds = {kind: [] for kind in MISSED_KINDS}
+        kinds["Other"] = []
+        for i in missed:
+            e = by_id[i]
+            text = f"{e['subject']} {e['sender']} {e['body'][:300]}"
+            kind = next((k for k, p in MISSED_KINDS.items()
+                         if re.search(p, text, re.I)), "Other")
+            kinds[kind].append(i)
+        rows = [[kind, len(ids),
+                 # How many of them the zero-shot Llama and the fine-tuned
+                 # model that DID see Nazario get right.
+                 f"{sum(i not in wrong['llama31_8b'] for i in ids)}/{len(ids)}",
+                 f"{sum(i not in wrong['llama31_8b_ft_train_1500'] for i in ids)}/{len(ids)}",
+                 # Example: the first one with a readable (not encoded) subject.
+                 snippet(next((by_id[i] for i in ids if "=?" not in by_id[i]["subject"]),
+                              by_id[ids[0]]), 50)]
+                for kind, ids in kinds.items() if ids]
+        out += ["## 7. Cross-source model: what it misses without Nazario",
+                f"`{CROSS_SOURCE}` was trained on 1,500 emails whose only "
+                "phishing is 419 / advance-fee fraud. It misses "
+                f"**{len(missed)} of 300** Nazario phishing emails; its other "
+                f"errors: {len(others)} "
+                f"({', '.join(f'`{i[:8]}` {SOURCE_NAMES[by_id[i]['source']]}' for i in others)}).",
+                table(["Kind of phishing", "Missed", "Zero-shot Llama correct",
+                       "Fine-tuned train_1500 correct", "Example subject"], rows),
+                "None of these asks for money the way a 419 scam does: they "
+                "imitate a service (mailbox, bank, file transfer) and want a "
+                "click or a login. The zero-shot model recognises them from "
+                "general knowledge; the model fine-tuned without them learnt "
+                "a narrower idea of \"phishing\"."]
 
     OUT_MD.write_text("\n\n".join(out) + "\n", encoding="utf-8")
     print("\n\n".join(out))

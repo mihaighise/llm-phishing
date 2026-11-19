@@ -1000,6 +1000,228 @@
         }
       }
     },
+    "llama31_8b_ft_train_1500_no_nazario": {
+      "all": {
+        "strict": {
+          "accuracy": 0.949,
+          "precision": 0.9955849889624724,
+          "recall": 0.902,
+          "f1": 0.9464847848898215,
+          "ci95": {
+            "accuracy": [
+              0.935,
+              0.963
+            ],
+            "f1": [
+              0.9316239316239316,
+              0.9619238476953909
+            ]
+          },
+          "n": 1000,
+          "parse_rate": 1.0,
+          "confusion": {
+            "phishing": {
+              "phishing": 451,
+              "legitimate": 49,
+              "unparseable": 0
+            },
+            "legitimate": {
+              "phishing": 2,
+              "legitimate": 498,
+              "unparseable": 0
+            }
+          },
+          "false_alarms": 2,
+          "missed_phishing": 49,
+          "per_source": {
+            "nazario": [
+              251,
+              300
+            ],
+            "nigerian": [
+              200,
+              200
+            ],
+            "spamassassin": [
+              253,
+              254
+            ],
+            "legit_naz5": [
+              132,
+              132
+            ],
+            "legit_nig5": [
+              113,
+              114
+            ]
+          }
+        },
+        "lenient": {
+          "accuracy": 0.949,
+          "precision": 0.9955849889624724,
+          "recall": 0.902,
+          "f1": 0.9464847848898215,
+          "ci95": {
+            "accuracy": [
+              0.935,
+              0.963
+            ],
+            "f1": [
+              0.9316239316239316,
+              0.9619238476953909
+            ]
+          },
+          "n": 1000,
+          "parse_rate": 1.0,
+          "confusion": {
+            "phishing": {
+              "phishing": 451,
+              "legitimate": 49,
+              "unparseable": 0
+            },
+            "legitimate": {
+              "phishing": 2,
+              "legitimate": 498,
+              "unparseable": 0
+            }
+          },
+          "false_alarms": 2,
+          "missed_phishing": 49,
+          "per_source": {
+            "nazario": [
+              251,
+              300
+            ],
+            "nigerian": [
+              200,
+              200
+            ],
+            "spamassassin": [
+              253,
+              254
+            ],
+            "legit_naz5": [
+              132,
+              132
+            ],
+            "legit_nig5": [
+              113,
+              114
+            ]
+          }
+        }
+      },
+      "dedup": {
+        "strict": {
+          "accuracy": 0.9494949494949495,
+          "precision": 0.994579945799458,
+          "recall": 0.8951219512195122,
+          "f1": 0.9422336328626444,
+          "ci95": {
+            "accuracy": [
+              0.9349046015712682,
+              0.9629629629629629
+            ],
+            "f1": [
+              0.9250985545335085,
+              0.9583858764186634
+            ]
+          },
+          "n": 891,
+          "parse_rate": 1.0,
+          "confusion": {
+            "phishing": {
+              "phishing": 367,
+              "legitimate": 43,
+              "unparseable": 0
+            },
+            "legitimate": {
+              "phishing": 2,
+              "legitimate": 479,
+              "unparseable": 0
+            }
+          },
+          "false_alarms": 2,
+          "missed_phishing": 43,
+          "per_source": {
+            "nazario": [
+              226,
+              269
+            ],
+            "nigerian": [
+              141,
+              141
+            ],
+            "spamassassin": [
+              248,
+              249
+            ],
+            "legit_naz5": [
+              123,
+              123
+            ],
+            "legit_nig5": [
+              108,
+              109
+            ]
+          }
+        },
+        "lenient": {
+          "accuracy": 0.9494949494949495,
+          "precision": 0.994579945799458,
+          "recall": 0.8951219512195122,
+          "f1": 0.9422336328626444,
+          "ci95": {
+            "accuracy": [
+              0.9349046015712682,
+              0.9629629629629629
+            ],
+            "f1": [
+              0.9250985545335085,
+              0.9583858764186634
+            ]
+          },
+          "n": 891,
+          "parse_rate": 1.0,
+          "confusion": {
+            "phishing": {
+              "phishing": 367,
+              "legitimate": 43,
+              "unparseable": 0
+            },
+            "legitimate": {
+              "phishing": 2,
+              "legitimate": 479,
+              "unparseable": 0
+            }
+          },
+          "false_alarms": 2,
+          "missed_phishing": 43,
+          "per_source": {
+            "nazario": [
+              226,
+              269
+            ],
+            "nigerian": [
+              141,
+              141
+            ],
+            "spamassassin": [
+              248,
+              249
+            ],
+            "legit_naz5": [
+              123,
+              123
+            ],
+            "legit_nig5": [
+              108,
+              109
+            ]
+          }
+        }
+      }
+    },
     "llama31_8b": {
       "all": {
         "strict": {
@@ -1830,7 +2052,14 @@
         {
           "model": "Llama 3.1 8B fine-tuned (train_1500_no_nazario)",
           "trained_on_held_out": false,
-          "not_run": true
+          "held_out_correct": 251,
+          "held_out_accuracy": 0.8366666666666667,
+          "held_out_ci95": [
+            0.7933333333333333,
+            0.8766666666666667
+          ],
+          "in_source_accuracy": 0.9971428571428571,
+          "in_source_f1": 0.9950248756218906
         }
       ]
     },

@@ -302,9 +302,10 @@ Observations:
   phishing, and a phishing email padded with random Arabic words to fool
   filters.
 - **Caveat:** test emails come from the same sources as the training
-  emails, so part of the gain may still be learning each source's style. The
+  emails, so part of the gain is learning each source's style. The
   [cross-source test](#cross-source-test-one-source-left-out-of-training)
-  checks whether it generalises. This model outputs only a label — no explanation.
+  confirms this: trained without Nazario, it catches 83.7% of Nazario
+  phishing instead of 99.7%. This model outputs only a label — no explanation.
   (These bullets describe `train_3000`; smaller sets are compared below.)
 
 ### Effect of training-set size
@@ -363,14 +364,31 @@ validation); we then test on that source's test emails. Compared with
 `train_1500`, only that one source changes. Full tables:
 [`results/metrics.md`](results/metrics.md#cross-source-test--one-source-left-out-of-training).
 
-Naive Bayes results so far (held-out test emails correct; in-source = all
-other test emails):
+Held-out test emails correct (fine-tuned Llama with it = `train_1500`):
 
-| Left out of training | Naive Bayes with it | Naive Bayes without it | Zero-shot LLMs | Fine-tuned Llama without it |
-|---|---|---|---|---|
-| Nazario phishing (300) | 98.0% | **41.7%** | 98.3–99.7% | not run yet |
-| Nigerian fraud (200) | 100.0% | **16.0%** | 99.5–100% | not run yet |
-| SpamAssassin legitimate (254) | 99.6% | 99.6% | 78.0–86.6% | not run yet |
+| Left out of training | Naive Bayes with it | Naive Bayes without it | Zero-shot LLMs | Fine-tuned Llama with it | Fine-tuned Llama without it |
+|---|---|---|---|---|---|
+| Nazario phishing (300) | 98.0% | **41.7%** | 98.3–99.7% | 99.7% | **83.7%** (79.3–87.7%) |
+| Nigerian fraud (200) | 100.0% | **16.0%** | 99.5–100% | 100.0% | not run yet |
+| SpamAssassin legitimate (254) | 99.6% | 99.6% | 78.0–86.6% | 99.2% | not run yet |
+
+`train_1500_no_nazario` (run on an L4 on 2026-11-18, validated on the 280
+`val_no_nazario` emails) on all 1,000 test emails: accuracy 94.9%
+(93.5–96.3%), precision 0.996, recall 0.902, F1 0.946 (0.932–0.962), 2 false
+alarms, 49 missed phishing. On the 700 other test emails it is as good as
+`train_1500` (99.7%).
+
+- **Fine-tuned Llama without Nazario misses 16% of Nazario phishing**
+  (49 of 300), against 0.3% for zero-shot Llama. Trained only on 419 scams,
+  it learnt a narrower idea of "phishing" and lost part of the general
+  knowledge the base model had. The 49 are ordinary credential phishing
+  (fake mailbox, password, WeTransfer, bank and PayPal alerts — see
+  [Error analysis](#cross-source-model-what-it-misses-without-nazario)), and
+  zero-shot Llama catches all 49.
+- **It still generalises twice as well as Naive Bayes** (83.7% vs 41.7%):
+  reading the email beats word counting on an unseen kind of phishing.
+- **It keeps the fine-tuned model's precision:** still only 2 false alarms
+  (zero-shot Llama: 121).
 
 - **Leaving out a phishing source breaks word counting.** Trained only on
   419 scams, Naive Bayes misses 58% of modern Nazario phishing (and 84% of
@@ -378,11 +396,12 @@ other test emails):
   ~99%, so the overall accuracy hides this completely.
 - **Leaving out a legitimate source does not:** "no scam words" is enough to
   call an email legitimate, whichever mailing list it came from.
-- **The open question** is the fine-tuned Llama: does it keep the general
-  phishing knowledge the zero-shot models clearly have (~99% on both
-  phishing sources), or narrow down to its training source like Naive
-  Bayes? `train_1500_no_nazario` answers the most realistic version
-  (trained on 419 scams only, tested on modern phishing).
+- **What this means for the 99.7% figure:** with every source in training,
+  part of fine-tuning's gain comes from recognising this dataset's sources.
+  On a new kind of phishing, expect something between the zero-shot recall
+  (~99.8%) and the cross-source result (~84%), not 99.7% on everything.
+  Only one source has been held out so far; `train_1500_no_nigerian` would
+  show whether the drop is general.
 - **Caveat:** the remaining legitimate sources (mostly Enron and other
   mailing lists such as samba, apache, sourceforge) partly share the style
   of SpamAssassin, so that test is not a fully unseen genre. No SpamAssassin
@@ -510,6 +529,24 @@ in 2001"*.
   random characters), plus Chinese/Portuguese emails and almost-empty
   bodies. The LLMs catch nearly all of these.
 
+### Cross-source model: what it misses without Nazario
+
+Llama fine-tuned on `train_1500_no_nazario` (its only phishing is 419
+fraud) misses 49 of the 300 Nazario test emails:
+
+| Kind of phishing | Missed | Zero-shot Llama correct | Fine-tuned `train_1500` correct |
+|---|---|---|---|
+| Mailbox / password / IT help-desk notice | 19 | 19/19 | 19/19 |
+| Brand account alert (USAA, PayPal, Apple, Amazon, other banks, UPS) | 15 | 15/15 | 15/15 |
+| Bank statement "attached" (Absa, Nedbank, Standard Bank) | 7 | 7/7 | 7/7 |
+| File-sharing or "secure message" link (WeTransfer, encrypted mail) | 7 | 7/7 | 7/7 |
+| Text hidden in Arabic filler | 1 | 1/1 | 0/1 |
+
+None of these asks for money the way a 419 scam does: they imitate a
+service and want a click or a login. Its only other errors are 2 false
+alarms (`74d7826c`, the MSN Groups post `train_1500` also flags, and
+`d1a25fba`, a lawyer's copyright-infringement letter).
+
 ### Takeaways
 
 - **The zero-shot models judge the sender more than the message.**
@@ -523,6 +560,9 @@ in 2001"*.
   genuinely hard or borderline emails, not labelling mistakes.
 - **Reading beats word counting on obfuscated phishing**, the main kind
   Naive Bayes misses.
+- **Fine-tuning narrows what counts as phishing:** without Nazario in
+  training, Llama misses 49 credential-phishing emails that its zero-shot
+  version catches.
 
 ## Repository layout
 
@@ -578,7 +618,8 @@ results/
 - [x] Train on `train_3000`; pick the best checkpoint on the val set (val accuracy 99.5%)
 - [x] Run the fine-tuned model on the same 1,000 test emails (99.8% accuracy, F1 0.998 — see [Fine-tuned results](#fine-tuned-results-label-only-qlora-train_500-train_1500-train_3000))
 - [x] Learning curve: also train on `train_500`, `train_1500` (F1 0.997 for both — 500 emails are enough; `train_full` skipped)
-- [ ] Cross-source test — splits, notebook support and metrics done; Naive Bayes results in README. To run: `train_1500_no_nazario` (most informative), `train_1500_no_nigerian`; `train_1500_no_spamassassin` optional
+- [x] Cross-source test: `train_1500_no_nazario` (83.7% of Nazario phishing caught vs 99.7% with it, Naive Bayes 41.7% — see [Cross-source test](#cross-source-test-one-source-left-out-of-training))
+- [ ] Optional: `train_1500_no_nigerian` (is the drop general?); `train_1500_no_spamassassin`
 - [ ] Later: second fine-tune on label + explanations (needs Step 4)
 
 ### Step 6 — Classification metrics
@@ -597,7 +638,7 @@ results/
 
 ### Step 8 — Write-up test
 - [ ] Results tables and figures
-- [x] Error analysis with example emails — `src/error_analysis.py`, [Error analysis](#error-analysis) (add the cross-source model's misses once it has run)
+- [x] Error analysis with example emails — `src/error_analysis.py`, [Error analysis](#error-analysis), including the cross-source model's misses
 - [ ] Limitations (era gap, lost URLs, limited modern phishing)
 
 Data preparation runs locally as scripts in `src/`; GPU work runs in Colab

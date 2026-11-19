@@ -82,3 +82,17 @@ Share of each model's false alarms that cite the indicator (an answer can cite s
 | Naive Bayes (bag-of-words baseline) | `afc3f66d` | Nazario phishing | yes | RE : [ Statement Data update] We received a violation repor… | Fake "statement data update" with a PDF to open; broken English. |
 | Naive Bayes (bag-of-words baseline) | `d6c96306` | Nazario phishing | yes | [ApplePay] your account has ben locked | Apple Pay "account locked" phishing with every word padded with "##number##" tokens to break word-based filters. |
 | Naive Bayes (bag-of-words baseline) | `dee541bb` | Nazario phishing | yes | Re:{BN-5367029#} | Two lines: "kindly find attached for payment confirmation". |
+
+## 7. Cross-source model: what it misses without Nazario
+
+`llama31_8b_ft_train_1500_no_nazario` was trained on 1,500 emails whose only phishing is 419 / advance-fee fraud. It misses **49 of 300** Nazario phishing emails; its other errors: 2 (`74d7826c` SpamAssassin legitimate, `d1a25fba` Nigerian_5 legitimate).
+
+| Kind of phishing | Missed | Zero-shot Llama correct | Fine-tuned train_1500 correct | Example subject |
+|---|---|---|---|---|
+| Text hidden in Arabic filler (also missed by train_1500) | 1 | 1/1 | 0/1 | Re: [Reservation Update Receipt] Signing Up for A… |
+| Bank statement "attached" (Absa, Nedbank, Standard Bank) | 7 | 7/7 | 7/7 | [PossibleSpam] Nedbank Current Account Statement … |
+| Mailbox / password / IT help-desk notice | 19 | 19/19 | 19/19 | MXHSUHSSX EMAIL VALIDATION REPORT AT 6/28/[YEAR] |
+| File-sharing or "secure message" link (WeTransfer, encrypted mail) | 7 | 7/7 | 7/7 | jose: You Received Messages/files via WeTransfer … |
+| Brand account alert (USAA, PayPal, Apple, Amazon, other banks, UPS) | 15 | 15/15 | 15/15 | UPS Update: Package Scheduled for Delivery |
+
+None of these asks for money the way a 419 scam does: they imitate a service (mailbox, bank, file transfer) and want a click or a login. The zero-shot model recognises them from general knowledge; the model fine-tuned without them learnt a narrower idea of "phishing".
