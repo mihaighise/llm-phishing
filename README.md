@@ -15,6 +15,33 @@ Classification is scored with accuracy, precision, recall and F1. Explanations
 are scored manually for correctness, clarity and identification of phishing
 indicators (urgency, impersonation, credential requests, suspicious links, …).
 
+## Main findings
+
+1. **Zero-shot LLMs catch almost all phishing but raise too many false
+   alarms.** Recall is 0.990–0.998, but they flag 54–121 of the 500
+   legitimate test emails (11–24%). Qwen 3.5 9B is the best of the three
+   (F1 0.947). [Baseline results](#baseline-results-prompt-v2-1000-test-emails)
+2. **Fine-tuning fixes the false alarms, with very little data.** QLoRA
+   fine-tuned Llama 3.1 8B reaches F1 0.997–0.998 with 1–3 false alarms,
+   and 500 training emails are as good as 3,000. It beats the Naive Bayes
+   baseline (F1 0.986), and gives the same result on the test emails with no
+   near-duplicate in training.
+   [Fine-tuned results](#fine-tuned-results-label-only-qlora-train_500-train_1500-train_3000)
+3. **But part of that score comes from learning the dataset's sources.**
+   Trained without Nazario phishing, the fine-tuned model catches 83.7% of
+   it instead of 99.7%. It misses ordinary credential phishing that its
+   zero-shot version catches. It still does twice as well as Naive Bayes
+   trained without Nazario (41.7%).
+   [Cross-source test](#cross-source-test-one-source-left-out-of-training)
+4. **Zero-shot models judge the sender and the era, not just the message.**
+   Llama flags 34 of 35 Enron emails, citing Enron's 2001 bankruptcy. The
+   models also call free-mail senders suspicious and sometimes invent
+   evidence. [Error analysis](#error-analysis)
+5. **In practice:** fine-tuning gives the best precision, and zero-shot
+   models catch new kinds of phishing more reliably. A detector would
+   need training data from many phishing types to get both. Explanations
+   (the second goal) are not evaluated yet.
+
 ## Dataset
 
 Source: [Phishing Email Curated Datasets](https://zenodo.org/records/8339691)
