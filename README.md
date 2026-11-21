@@ -163,7 +163,6 @@ data/                # gitignored: raw and processed data
 ### Step 4: Fine-tune Llama 3.1 8B ✅
 - [x] Label-only QLoRA on `train_500`, `train_1500` and `train_3000` (learning curve)
 - [x] Cross-source test: `train_1500_no_nazario`
-- [ ] Optional: `train_1500_no_nigerian`, to check whether the drop is general
 
 ### Step 5: Metrics and error analysis ✅
 - [x] Accuracy, precision, recall and F1 with confidence intervals, strict and lenient, per source, and without near-duplicates
