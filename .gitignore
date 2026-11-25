@@ -6,6 +6,7 @@ spam_Emails_data.csv
 checkpoints/
 outputs/
 results/raw/
+results/explanations/
 *.safetensors
 *.bin
 *.gguf
