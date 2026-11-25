@@ -19,21 +19,45 @@ model's decision changes. If hiding the sender flips the answer, the sender
 mattered. This measures the model's real BEHAVIOUR; it does not rely on the
 model describing itself, so it is the more trustworthy evidence.
 
+In the first trial, hiding ONE part never changed the fine-tuned model's
+answer: the parts that were left were always enough. So we also do the
+opposite and show ONLY one part (only_sender, only_subject, only_body), plus
+a completely empty email, which shows the model's default answer.
+
 PART B — WRITTEN EXPLANATIONS (what does the model say?)
 -------------------------------------------------------
-Three ways of getting text, so that we can compare them:
+Several ways of getting text, so that we can compare them. The first two were
+tried in the first trial and FAILED, so they are no longer run (the code is
+kept because their results are part of the story):
 
-  prefill       We write the start of the answer for the model:
+  prefill       (failed, 0/20) We write the start of the answer for the model:
                     {"label": "legitimate", "reasoning": "
                 and it has to continue from there. The label is the model's
                 own, from the official test run.
-  followup      We show the model its own answer and ask, as a second chat
-                message, to explain it.
-  base_prefill  CONTROL. Exactly like `prefill`, but with the fine-tuning
-                switched off, so the ORIGINAL Llama argues for the label that
-                the fine-tuned one chose. If this text is as good as
-                `prefill`, then the explanation shows what any Llama can say
-                in defence of a label, not what fine-tuning taught it.
+  followup      (failed, 0/20) We show the model its own answer and ask, as a
+                second chat message, to explain it.
+
+  WHY THEY FAILED: in training, every answer was the label and then the end.
+  So the model only repeated the label ("legitimate" or {"label": ...}) and
+  stopped. base_prefill gets the SAME input but with fine-tuning off, and it
+  wrote real text 20/20 times. So our prompt works; the fine-tuning is what
+  taught the model not to explain.
+
+These are run:
+
+  starter       A stronger push for the fine-tuned model. We also write the
+                first words of the explanation ("I labeled this email as
+                legitimate because"), and forbid it to finish during the first
+                MIN_NEW_TOKENS tokens. This forces text out, so it may be
+                nonsense: read it before trusting it.
+  base_starter  CONTROL for `starter`: the same push, fine-tuning off.
+  base_prefill  CONTROL without the push. Exactly like `prefill`, but with the
+                fine-tuning switched off, so the ORIGINAL Llama argues for the
+                label that the fine-tuned one chose.
+
+If a control's text is as good as the fine-tuned model's, then the explanation
+shows what any Llama can say in defence of a label, not what fine-tuning
+taught it.
 
 HOW TO READ THE WRITTEN EXPLANATIONS
 ------------------------------------
@@ -48,6 +72,7 @@ from contextlib import nullcontext
 from pathlib import Path
 
 import torch
+from transformers import LogitsProcessor, LogitsProcessorList
 
 # Our own modules in src/ (the notebook adds src/ to the Python path).
 # _render_prompt is the SAME function used for the baselines and for training,
@@ -70,8 +95,25 @@ FOLLOWUP_QUESTION = (
     "Explain in two to four sentences why you chose this label, citing "
     "specific evidence from the email. Answer in plain text, not JSON.")
 
-# The ways of getting a written explanation, described at the top.
-METHODS = ["prefill", "followup", "base_prefill"]
+# Part B (starter): the first words of the explanation, written for the model.
+# The label is the fine-tuned model's own. The sentence is neutral: it names
+# the label but gives no reason, so the reason must come from the model.
+STARTER_WORDS = "I labeled this email as {label} because"
+
+# The ways of getting a written explanation, described at the top. `prefill`
+# and `followup` still work, but failed in the first trial, so they are not
+# run by default any more.
+METHODS = ["starter", "base_starter", "base_prefill"]
+
+# Methods where the fine-tuning is switched off (the controls).
+CONTROL_METHODS = {"base_prefill", "base_starter"}
+
+# Methods that get the first words and may not end immediately.
+STARTER_METHODS = {"starter", "base_starter"}
+
+# For the starter methods: the model may not finish before this many tokens
+# (~30 words, about one long sentence).
+MIN_NEW_TOKENS = 40
 
 # Long enough for four long sentences (~60-100 tokens in the baselines).
 MAX_NEW_TOKENS = 250
@@ -149,6 +191,13 @@ def in_batches(items: list, batch_size: int, length):
 def make_variants(email: dict) -> dict:
     """All versions of one email that we score: {variant name: email dict}.
 
+    no_...    one part hidden          only_...  everything else hidden
+    empty     all parts hidden: the model's default answer. It is nearly the
+              same question for every email (only the "Contains links" line
+              differs), but costs almost nothing to score.
+
+    That "Contains links: yes/no" line is always shown, in every variant.
+
     An empty field is shown to the model as "(none)" or "(empty)" by
     prompts.format_email(), so the prompt's layout stays the same.
 
@@ -163,6 +212,10 @@ def make_variants(email: dict) -> dict:
         "no_sender": {**email, "sender": ""},
         "no_subject": {**email, "subject": ""},
         "no_body": {**email, "body": ""},
+        "only_sender": {**email, "subject": "", "body": ""},
+        "only_subject": {**email, "sender": "", "body": ""},
+        "only_body": {**email, "sender": "", "subject": ""},
+        "empty": {**email, "sender": "", "subject": "", "body": ""},
     }
     fields = {k: email.get(k) or "" for k in ("sender", "subject", "body")}
     if any("enron" in text.lower() for text in fields.values()):
@@ -277,6 +330,10 @@ def explanation_prompt(tokenizer, email: dict, label: str, method: str) -> str:
     if method in ("prefill", "base_prefill"):
         return (_render_prompt(tokenizer, email, {})
                 + REASONING_PREFIX.format(label=label))
+    if method in STARTER_METHODS:
+        return (_render_prompt(tokenizer, email, {})
+                + REASONING_PREFIX.format(label=label)
+                + STARTER_WORDS.format(label=label))
     if method == "followup":
         messages = build_messages(email) + [
             {"role": "assistant", "content": json.dumps({"label": label})},
@@ -294,13 +351,29 @@ def explanation_prompt(tokenizer, email: dict, label: str, method: str) -> str:
 _END_OF_REASONING = re.compile(r'(?<!\\)"\s*(?:\}|,\s*"|\Z)')
 
 
-def clean_explanation(raw: str, method: str) -> dict:
+def is_repetitive(text: str) -> bool:
+    """True for text that goes round in circles ("legitimate legitimate ...").
+
+    A model that is forced to write can get stuck in a loop. We look at every
+    group of three neighbouring words: in normal English nearly all of these
+    groups are different, in a loop most of them are the same.
+    """
+    words = text.lower().split()
+    groups = list(zip(words, words[1:], words[2:]))
+    if not groups:  # fewer than three words: nothing to compare
+        return True
+    return len(set(groups)) / len(groups) < 0.7
+
+
+def clean_explanation(raw: str, method: str, label: str) -> dict:
     """Turn the model's raw continuation into readable text.
 
     Returns {"reasoning": text, "finished": bool, "usable": bool}.
       finished — the model ended its explanation by itself
                  (for followup we cannot tell, so it is always True)
-      usable   — there is real text: not empty, not just the label again
+      usable   — there is real text: not empty, not just the label again and
+                 not a loop. This is only a rough filter: it cannot tell
+                 whether the text is TRUE, so a person still has to read it.
     """
     text, finished = raw, True
     if method != "followup":
@@ -313,21 +386,65 @@ def clean_explanation(raw: str, method: str) -> dict:
     text = text.strip()
     # A model that falls back to its training answers {"label": ...} again.
     repeats_label = text.startswith("{") or '"label"' in text
-    usable = len(text) >= 40 and not repeats_label
+    usable = (len(text) >= 40 and not repeats_label
+              and not is_repetitive(text))
+    # `usable` was decided on the model's OWN words. Only now do we add the
+    # words we wrote for it, so that the sentence reads normally.
+    if method in STARTER_METHODS:
+        text = STARTER_WORDS.format(label=label) + " " + text
     return {"reasoning": text, "finished": finished, "usable": usable}
 
 
+class NoEarlyEnd(LogitsProcessor):
+    """Forbids the model to finish during its first `min_new_tokens` tokens.
+
+    At every step the model gives each possible next token a score (a logit)
+    and takes the highest one. We set the score of the forbidden tokens to
+    minus infinity, so they can never be chosen.
+
+    Forbidden are the special tokens (one of them means "I am done") and every
+    token containing a quote or a curly bracket, because those would close the
+    JSON answer. A side effect: the model cannot quote the email in its first
+    words either.
+    """
+
+    def __init__(self, tokenizer, prompt_length: int, min_new_tokens: int):
+        self.prompt_length = prompt_length
+        self.min_new_tokens = min_new_tokens
+        forbidden = {i for token, i in tokenizer.get_vocab().items()
+                     if any(c in token for c in '"{}')}
+        forbidden |= set(tokenizer.get_added_vocab().values())  # special ones
+        self.forbidden = torch.tensor(sorted(forbidden))
+
+    def __call__(self, input_ids, scores):
+        # input_ids = prompt + what has been written so far. All prompts in a
+        # batch have the same padded length, so one number is enough.
+        if input_ids.shape[1] - self.prompt_length < self.min_new_tokens:
+            scores = scores.clone()  # do not change the model's own tensor
+            scores[:, self.forbidden.to(scores.device)] = -float("inf")
+        return scores
+
+
 @torch.inference_mode()
-def continue_texts(model, tokenizer, texts: list) -> list:
-    """Let the model continue each text (greedy: same result every time)."""
+def continue_texts(model, tokenizer, texts: list,
+                   min_new_tokens: int = 0) -> list:
+    """Let the model continue each text (greedy: same result every time).
+
+    min_new_tokens > 0 forbids it to finish earlier than that.
+    """
     inputs = tokenizer(texts, return_tensors="pt", padding=True,
                        add_special_tokens=False).to(model.device)
+    processors = LogitsProcessorList()
+    if min_new_tokens:
+        processors.append(NoEarlyEnd(tokenizer, inputs["input_ids"].shape[1],
+                                     min_new_tokens))
     outputs = model.generate(
         **inputs,
         max_new_tokens=MAX_NEW_TOKENS,
         do_sample=False,
         temperature=None, top_p=None, top_k=None,  # silence warnings
         pad_token_id=tokenizer.pad_token_id,
+        logits_processor=processors,
     )
     # Cut off the prompt; keep only what the model added.
     new_tokens = outputs[:, inputs["input_ids"].shape[1]:]
@@ -350,7 +467,8 @@ def explain_emails(run_name: str, model, tokenizer, emails: list,
     for method in methods:
         todo = [e for e in emails if (e["id"], method) not in done]
         print(f"[{run_name}] explaining with {method}: {len(todo)} to run")
-        with adapter_off(model, method == "base_prefill"), \
+        min_new = MIN_NEW_TOKENS if method in STARTER_METHODS else 0
+        with adapter_off(model, method in CONTROL_METHODS), \
                 open(out_path, "a", encoding="utf-8") as f:
             for batch in in_batches(todo, batch_size,
                                     length=lambda e: len(e["body"])):
@@ -358,9 +476,11 @@ def explain_emails(run_name: str, model, tokenizer, emails: list,
                                               entries[e["id"]]["saved_label"],
                                               method) for e in batch]
                 answers = run_safely(
-                    lambda part: continue_texts(model, tokenizer, part),
+                    lambda part: continue_texts(model, tokenizer, part,
+                                                min_new),
                     prompts)
                 for email, raw in zip(batch, answers):
+                    label = entries[email["id"]]["saved_label"]
                     f.write(json.dumps({
                         "id": email["id"],
                         "model": run_name,
@@ -368,9 +488,9 @@ def explain_emails(run_name: str, model, tokenizer, emails: list,
                         "group": entries[email["id"]]["group"],
                         "source": email["source"],
                         "true_label": email["label"],
-                        "label": entries[email["id"]]["saved_label"],
+                        "label": label,
                         "raw_output": raw,  # kept, to re-clean it without a GPU
-                        **clean_explanation(raw, method),
+                        **clean_explanation(raw, method, label),
                     }, ensure_ascii=False) + "\n")
                 f.flush()
     return load_rows(out_path)
